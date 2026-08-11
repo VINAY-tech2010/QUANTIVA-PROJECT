@@ -1,0 +1,19 @@
+# Netlify configuration for QUANTIVA (Next.js 16 App Router)
+# Docs: https://docs.netlify.com/integrations/frameworks/next-js/
+
+[build]
+  # Build from the repository root (where package.json + src/ live).
+  base = ""
+  command = "npm run build"
+  # Next.js on Netlify publishes .next via the runtime; do not set a static dir.
+  publish = ".next"
+
+# The official Netlify Next.js runtime. Required for App Router, SSR,
+# route handlers, and image optimization. Auto-detected, but declared
+# explicitly so the correct plugin version is always used.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[build.environment]
+  # Next.js 16 requires a modern Node runtime.
+  NODE_VERSION = "20"
