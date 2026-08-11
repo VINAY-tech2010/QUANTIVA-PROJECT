@@ -297,6 +297,12 @@ export interface CalculatorDefinition {
 /* Intent / natural-language search                                          */
 /* ------------------------------------------------------------------------ */
 
+export interface IntentCandidate {
+  toolId: string;
+  name: string;
+  confidence: number;
+}
+
 export interface IntentResult {
   /** Matched calculator id, or null when no confident match. */
   toolId: string | null;
@@ -307,9 +313,23 @@ export interface IntentResult {
   /** Field keys the tool needs but were not found in the query. */
   unresolvedFields: string[];
   /** Candidate tools when confidence is low (for disambiguation UI). */
-  candidates: { toolId: string; name: string; confidence: number }[];
+  candidates: IntentCandidate[];
   /** The normalized query that was parsed. */
   query: string;
+  /** Confidence tier driving routing behaviour. */
+  tier?: "high" | "medium" | "low";
+  /** Human label for the recognized intent, e.g. "Percentage Calculation". */
+  recognizedLabel?: string;
+  /** Short human summary of what was understood, e.g. "10% of 500". */
+  recognizedSummary?: string;
+  /** True when every required field is filled and the result can be computed now. */
+  autoCalculable?: boolean;
+  /** Inline result for intents computed without routing (e.g. arithmetic). */
+  inlineResult?: { label: string; value: string };
+  /** ISO target date for live countdown intents. */
+  liveCountdownTarget?: string;
+  /** Human-readable names of the missing required fields. */
+  missingLabels?: string[];
 }
 
 /* ------------------------------------------------------------------------ */

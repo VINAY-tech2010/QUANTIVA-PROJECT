@@ -49,7 +49,7 @@ describe("parseIntent", () => {
   it("routes a tip query and extracts bill and percent", () => {
     const r = parseIntent("how much tip on $85 at 18%");
     expect(r.toolId).toBe("tip");
-    expect(r.parameters.bill).toBe(85);
+    expect(r.parameters.billAmount).toBe(85);
     expect(r.parameters.tipPercent).toBe(18);
   });
 
@@ -57,7 +57,7 @@ describe("parseIntent", () => {
     const r = parseIntent("what is 25% off $120");
     expect(r.toolId).toBe("discount");
     expect(r.parameters.originalPrice).toBe(120);
-    expect(r.parameters.discountPercent).toBe(25);
+    expect(r.parameters.percentOff).toBe(25);
   });
 
   it("routes a loan query and extracts principal and rate", () => {

@@ -1,11 +1,18 @@
-import type { IntentResult } from "@/types";
-import { CALCULATORS } from "@/data/calculators";
+import type { IntentResult, IntentCandidate, CalculatorInputs } from "@/types";
+import { CALCULATORS, getCalculator } from "@/data/calculators";
+import { evaluateExpression } from "@/lib/calculations/classical-parser";
+import { convert, formatConverted, getUnit } from "@/lib/units";
+import type { Dimension } from "@/lib/units";
 import {
   normalize,
   extractMoney,
   extractTimes,
   extractPercents,
   extractNumbers,
+  extractUnits,
+  extractDates,
+  extractDurations,
+  toArithmeticExpression,
 } from "./tokenizer";
 
 interface Rule {
@@ -13,195 +20,389 @@ interface Rule {
   /** Keyword triggers (matched against normalized query). */
   triggers: string[];
   /** Map extracted entities onto calculator input fields. */
-  map: (query: string) => Record<string, number | string>;
+  map: (query: string) => CalculatorInputs;
   /** Fields the rule could not fill but the calculator needs. */
   required: string[];
+  /** Human label for the recognized intent. */
+  label: string;
+  /** Build a short human summary of what was understood. */
+  summarize?: (params: CalculatorInputs) => string;
 }
 
 const firstMoney = (q: string) => extractMoney(q)[0]?.value;
 const firstPercent = (q: string) => extractPercents(q)[0]?.value;
 const firstNumber = (q: string) => extractNumbers(q)[0]?.value;
 
+/** Extract a term in years from phrases like "for 5 years", "5 yr", "5-year". */
+function extractYears(q: string): number | undefined {
+  const m = /(\d+(?:\.\d+)?)\s?(?:-\s?)?(years?|yrs?|y)\b/.exec(normalize(q));
+  return m ? parseFloat(m[1]) : undefined;
+}
+
+/** Extract a count of people from "between 4 people", "for 3", "split 3 ways". */
+function extractPeople(q: string): number | undefined {
+  const m = /(?:between|among|for|split|ways?|people|persons?)\s+(\d+)/.exec(normalize(q))
+    ?? /(\d+)\s?(?:people|persons?|ways)\b/.exec(normalize(q));
+  return m ? parseInt(m[1], 10) : undefined;
+}
+
+/** City / country → IANA time zone. */
+const ZONE_ALIASES: Record<string, string> = {
+  india: "Asia/Kolkata",
+  ist: "Asia/Kolkata",
+  delhi: "Asia/Kolkata",
+  mumbai: "Asia/Kolkata",
+  tokyo: "Asia/Tokyo",
+  japan: "Asia/Tokyo",
+  london: "Europe/London",
+  uk: "Europe/London",
+  britain: "Europe/London",
+  paris: "Europe/Paris",
+  france: "Europe/Paris",
+  berlin: "Europe/Berlin",
+  germany: "Europe/Berlin",
+  "new york": "America/New_York",
+  nyc: "America/New_York",
+  est: "America/New_York",
+  "los angeles": "America/Los_Angeles",
+  la: "America/Los_Angeles",
+  pst: "America/Los_Angeles",
+  chicago: "America/Chicago",
+  dubai: "Asia/Dubai",
+  uae: "Asia/Dubai",
+  singapore: "Asia/Singapore",
+  sydney: "Australia/Sydney",
+  australia: "Australia/Sydney",
+  utc: "UTC",
+  gmt: "UTC",
+};
+
+function findZones(q: string): string[] {
+  const norm = normalize(q);
+  const found: string[] = [];
+  const aliases = Object.keys(ZONE_ALIASES).sort((a, b) => b.length - a.length);
+  for (const alias of aliases) {
+    const re = new RegExp(`\\b${alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
+    if (re.test(norm)) {
+      const zone = ZONE_ALIASES[alias];
+      if (!found.includes(zone)) found.push(zone);
+    }
+  }
+  return found;
+}
+
 const RULES: Rule[] = [
   {
-    toolId: "affordability",
-    triggers: ["can i afford", "afford", "should i buy"],
-    required: ["price"],
+    toolId: "percentage",
+    label: "Percentage Calculation",
+    triggers: ["percent of", "percentage", "% of", "what percent", "percent of", "pct of"],
+    required: ["valueA", "valueB"],
     map: (q) => {
-      const price = firstMoney(q) ?? firstNumber(q);
-      const out: Record<string, number> = {};
-      if (price !== undefined) out.price = price;
+      const norm = normalize(q);
+      const pct = firstPercent(q);
+      const nums = extractNumbers(q);
+      const out: CalculatorInputs = {};
+      if (/what\s*(%|percent)|as a (percent|%)|is what/.test(norm) && nums.length >= 2) {
+        out.mode = "whatPercent";
+        out.valueA = nums[0].value;
+        out.valueB = nums[1].value;
+        return out;
+      }
+      if (/change|increase|decrease|from .* to /.test(norm) && nums.length >= 2) {
+        out.mode = "change";
+        out.valueA = nums[0].value;
+        out.valueB = nums[1].value;
+        return out;
+      }
+      out.mode = "of";
+      if (pct !== undefined) out.valueA = pct;
+      const ofNum = nums.find((n) => n.value !== pct);
+      if (ofNum !== undefined) out.valueB = ofNum.value;
+      else if (nums[0] !== undefined && pct === undefined) out.valueA = nums[0].value;
       return out;
     },
+    summarize: (p) =>
+      p.mode === "of"
+        ? `${p.valueA}% of ${p.valueB}`
+        : p.mode === "whatPercent"
+          ? `${p.valueA} as a % of ${p.valueB}`
+          : `% change from ${p.valueA} to ${p.valueB}`,
+  },
+  {
+    toolId: "loan",
+    label: "Loan Calculation",
+    triggers: ["loan", "borrow", "car payment", "monthly payment", "emi"],
+    required: ["principal", "interestRate", "termYears"],
+    map: (q) => {
+      const principal = firstMoney(q) ?? firstNumber(q);
+      const rate = firstPercent(q);
+      const years = extractYears(q);
+      const out: CalculatorInputs = {};
+      if (principal !== undefined) out.principal = principal;
+      if (rate !== undefined) out.interestRate = rate;
+      if (years !== undefined) out.termYears = years;
+      return out;
+    },
+    summarize: (p) =>
+      `Loan of ${p.principal ?? "?"} at ${p.interestRate ?? "?"}% for ${p.termYears ?? "?"} years`,
+  },
+  {
+    toolId: "mortgage",
+    label: "Mortgage Calculation",
+    triggers: ["mortgage", "house payment", "home loan", "home price"],
+    required: ["homePrice", "interestRate", "termYears"],
+    map: (q) => {
+      const price = firstMoney(q) ?? firstNumber(q);
+      const rate = firstPercent(q);
+      const years = extractYears(q);
+      const out: CalculatorInputs = {};
+      if (price !== undefined) out.homePrice = price;
+      if (rate !== undefined) out.interestRate = rate;
+      if (years !== undefined) out.termYears = years;
+      return out;
+    },
+    summarize: (p) =>
+      `Mortgage of ${p.homePrice ?? "?"} at ${p.interestRate ?? "?"}% for ${p.termYears ?? "?"} years`,
+  },
+  {
+    toolId: "affordability",
+    label: "Affordability Check",
+    triggers: ["can i afford", "afford", "should i buy"],
+    required: ["price", "monthlyIncome"],
+    map: (q) => {
+      const monies = extractMoney(q);
+      const out: CalculatorInputs = {};
+      if (monies[0]) out.price = monies[0].value;
+      const incomeMatch = /(?:salary|income|earn|making|make)\s+(?:of\s+)?\$?₹?(\d[\d,]*(?:\.\d+)?)/.exec(normalize(q));
+      if (incomeMatch) {
+        out.monthlyIncome = parseFloat(incomeMatch[1].replace(/,/g, ""));
+      } else if (monies[1]) {
+        out.monthlyIncome = monies[1].value;
+      }
+      if (out.price === undefined) {
+        const n = firstNumber(q);
+        if (n !== undefined) out.price = n;
+      }
+      return out;
+    },
+    summarize: (p) => `Afford ${p.price ?? "?"} on income ${p.monthlyIncome ?? "?"}`,
   },
   {
     toolId: "time-duration",
+    label: "Time Duration",
     triggers: ["how long is", "time between", "duration between", "how many hours between", "from"],
     required: ["startTime", "endTime"],
     map: (q) => {
       const times = extractTimes(q);
-      const out: Record<string, string> = {};
+      const out: CalculatorInputs = {};
       if (times[0]) out.startTime = times[0].time;
       if (times[1]) out.endTime = times[1].time;
       return out;
     },
+    summarize: (p) => `${p.startTime ?? "?"} → ${p.endTime ?? "?"}`,
   },
   {
     toolId: "tip",
+    label: "Tip Calculation",
     triggers: ["tip", "gratuity"],
-    required: ["bill"],
+    required: ["billAmount"],
     map: (q) => {
       const bill = firstMoney(q) ?? firstNumber(q);
       const pct = firstPercent(q);
-      const out: Record<string, number> = {};
-      if (bill !== undefined) out.bill = bill;
+      const people = extractPeople(q);
+      const out: CalculatorInputs = {};
+      if (bill !== undefined) out.billAmount = bill;
       if (pct !== undefined) out.tipPercent = pct;
+      if (people !== undefined) out.people = people;
       return out;
     },
+    summarize: (p) => `Tip on ${p.billAmount ?? "?"}${p.tipPercent !== undefined ? ` at ${p.tipPercent}%` : ""}`,
   },
   {
     toolId: "discount",
+    label: "Discount Calculation",
     triggers: ["discount", "off", "sale price", "marked down"],
-    required: ["originalPrice"],
+    required: ["originalPrice", "percentOff"],
     map: (q) => {
       const price = firstMoney(q) ?? firstNumber(q);
       const pct = firstPercent(q);
-      const out: Record<string, number> = {};
+      const out: CalculatorInputs = {};
       if (price !== undefined) out.originalPrice = price;
-      if (pct !== undefined) out.discountPercent = pct;
+      if (pct !== undefined) out.percentOff = pct;
       return out;
     },
+    summarize: (p) => `${p.percentOff ?? "?"}% off ${p.originalPrice ?? "?"}`,
   },
   {
-    toolId: "loan",
-    triggers: ["loan", "borrow", "car payment", "monthly payment"],
-    required: ["principal"],
+    toolId: "bill-split",
+    label: "Bill Split",
+    triggers: ["split bill", "split the bill", "split between", "divide bill", "split"],
+    required: ["bill", "people"],
     map: (q) => {
-      const principal = firstMoney(q) ?? firstNumber(q);
-      const rate = firstPercent(q);
-      const out: Record<string, number> = {};
-      if (principal !== undefined) out.principal = principal;
-      if (rate !== undefined) out.interestRate = rate;
-      return out;
-    },
-  },
-  {
-    toolId: "mortgage",
-    triggers: ["mortgage", "house payment", "home loan"],
-    required: ["homePrice"],
-    map: (q) => {
-      const price = firstMoney(q) ?? firstNumber(q);
-      const out: Record<string, number> = {};
-      if (price !== undefined) out.homePrice = price;
-      return out;
-    },
-  },
-  {
-    toolId: "percentage",
-    triggers: ["percent of", "percentage", "% of", "what percent"],
-    required: [],
-    map: (q) => {
-      const nums = extractNumbers(q);
+      const bill = firstMoney(q) ?? firstNumber(q);
       const pct = firstPercent(q);
-      const out: Record<string, number> = {};
-      if (pct !== undefined && nums[0] !== undefined) {
-        out.percent = pct;
-        out.of = nums[0].value;
-      } else if (nums.length >= 2) {
-        out.part = nums[0].value;
-        out.whole = nums[1].value;
+      const people = extractPeople(q);
+      const out: CalculatorInputs = {};
+      if (bill !== undefined) out.bill = bill;
+      if (pct !== undefined) out.tipPercent = pct;
+      if (people !== undefined) out.people = people;
+      return out;
+    },
+    summarize: (p) => `Split ${p.bill ?? "?"} between ${p.people ?? "?"} people`,
+  },
+  {
+    toolId: "fuel-cost",
+    label: "Fuel Calculation",
+    triggers: ["fuel", "petrol", "gas", "mileage", "km per litre", "km/l", "mpg"],
+    required: ["distance", "efficiency"],
+    map: (q) => {
+      const norm = normalize(q);
+      const nums = extractNumbers(q);
+      const units = extractUnits(q);
+      const out: CalculatorInputs = {};
+      const distUnit = units.find((u) => u.dimension === "length" && u.value !== undefined);
+      if (distUnit && distUnit.value !== undefined) out.distance = distUnit.value;
+      else if (nums[0]) out.distance = nums[0].value;
+      const effMatch = /(\d+(?:\.\d+)?)\s?(?:km\s?(?:per|\/|p)\s?l(?:itre|iter)?|kmpl|mpg|km\/l)\b/.exec(norm);
+      if (effMatch) out.efficiency = parseFloat(effMatch[1]);
+      else if (nums[1]) out.efficiency = nums[1].value;
+      const price = firstMoney(q);
+      if (price !== undefined) out.price = price;
+      return out;
+    },
+    summarize: (p) =>
+      `Fuel for ${p.distance ?? "?"} km at ${p.efficiency ?? "?"} km/L${p.price !== undefined ? `, price ${p.price}` : ""}`,
+  },
+  {
+    toolId: "countdown",
+    label: "Countdown",
+    triggers: ["how long until", "countdown", "days until", "time until", "until"],
+    required: ["targetDate"],
+    map: (q) => {
+      const dates = extractDates(q);
+      const out: CalculatorInputs = {};
+      if (dates[0]) out.targetDate = dates[0].iso;
+      return out;
+    },
+    summarize: (p) => `Countdown to ${p.targetDate ?? "?"}`,
+  },
+  {
+    toolId: "date-duration",
+    label: "Date Difference",
+    triggers: ["days between", "between", "date difference", "how many days", "duration between dates"],
+    required: ["startDate", "endDate"],
+    map: (q) => {
+      const dates = extractDates(q);
+      const out: CalculatorInputs = {};
+      if (dates[0]) out.startDate = dates[0].iso;
+      if (dates[1]) out.endDate = dates[1].iso;
+      return out;
+    },
+    summarize: (p) => `${p.startDate ?? "?"} → ${p.endDate ?? "?"}`,
+  },
+  {
+    toolId: "time-zone",
+    label: "Time Zone Conversion",
+    triggers: ["time in", "what time", "time zone", "timezone", "when it's", "when its"],
+    required: ["dateTime", "fromZone", "toZone"],
+    map: (q) => {
+      const zones = findZones(q);
+      const times = extractTimes(q);
+      const out: CalculatorInputs = {};
+      if (zones[0]) out.fromZone = zones[0];
+      if (zones[1]) out.toZone = zones[1];
+      if (times[0]) {
+        const today = new Date();
+        const [hh, mm] = times[0].time.split(":").map((x) => parseInt(x, 10));
+        const dt = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hh, mm);
+        out.dateTime = dt.toISOString().slice(0, 16);
       }
       return out;
     },
+    summarize: (p) => `${p.fromZone ?? "?"} → ${p.toZone ?? "?"}`,
   },
   {
     toolId: "compound-growth",
+    label: "Compound Growth",
     triggers: ["compound", "grow", "investment growth", "interest grow"],
     required: ["principal"],
     map: (q) => {
       const principal = firstMoney(q) ?? firstNumber(q);
-      const out: Record<string, number> = {};
+      const rate = firstPercent(q);
+      const years = extractYears(q);
+      const out: CalculatorInputs = {};
       if (principal !== undefined) out.principal = principal;
+      if (rate !== undefined) out.annualRate = rate;
+      if (years !== undefined) out.years = years;
       return out;
     },
+    summarize: (p) => `Grow ${p.principal ?? "?"}`,
   },
   {
     toolId: "savings-goal",
+    label: "Savings Goal",
     triggers: ["save", "savings goal", "how long to save"],
     required: ["goal"],
     map: (q) => {
       const goal = firstMoney(q) ?? firstNumber(q);
-      const out: Record<string, number> = {};
+      const out: CalculatorInputs = {};
       if (goal !== undefined) out.goal = goal;
       return out;
     },
+    summarize: (p) => `Save ${p.goal ?? "?"}`,
   },
   {
     toolId: "meeting-cost",
+    label: "Meeting Cost",
     triggers: ["meeting cost", "cost of meeting", "meeting"],
     required: [],
     map: (q) => {
-      const people = firstNumber(q);
-      const out: Record<string, number> = {};
+      const people = extractPeople(q) ?? firstNumber(q);
+      const out: CalculatorInputs = {};
       if (people !== undefined) out.attendees = people;
       return out;
     },
+    summarize: () => "Meeting cost",
   },
   {
     toolId: "break-even",
+    label: "Break-Even",
     triggers: ["break even", "break-even", "breakeven"],
     required: [],
     map: () => ({}),
+    summarize: () => "Break-even",
   },
   {
     toolId: "freelance-rate",
+    label: "Freelance Rate",
     triggers: ["freelance rate", "hourly rate", "charge per hour", "day rate"],
     required: [],
     map: (q) => {
       const salary = firstMoney(q);
-      const out: Record<string, number> = {};
+      const out: CalculatorInputs = {};
       if (salary !== undefined) out.targetIncome = salary;
       return out;
     },
+    summarize: () => "Freelance rate",
   },
   {
     toolId: "bmi",
+    label: "BMI",
     triggers: ["bmi", "body mass index"],
     required: [],
     map: (q) => {
       const nums = extractNumbers(q);
-      const out: Record<string, number> = {};
+      const out: CalculatorInputs = {};
       if (nums[0] !== undefined) out.weightKg = nums[0].value;
       if (nums[1] !== undefined) out.heightCm = nums[1].value;
       return out;
     },
-  },
-  {
-    toolId: "unit-converter",
-    triggers: ["convert", "to kilometers", "to miles", "to kg", "to pounds", "how many"],
-    required: [],
-    map: () => ({}),
-  },
-  {
-    toolId: "countdown",
-    triggers: ["how long until", "countdown", "days until", "time until"],
-    required: [],
-    map: () => ({}),
-  },
-  {
-    toolId: "bill-split",
-    triggers: ["split bill", "split the bill", "split between", "divide bill"],
-    required: [],
-    map: (q) => {
-      const bill = firstMoney(q) ?? firstNumber(q);
-      const out: Record<string, number> = {};
-      if (bill !== undefined) out.bill = bill;
-      return out;
-    },
+    summarize: () => "BMI",
   },
 ];
 
-const CONFIDENCE_THRESHOLD = 0.45;
+const HIGH_THRESHOLD = 0.7;
+const MEDIUM_THRESHOLD = 0.45;
 
 function scoreRule(rule: Rule, query: string): number {
   const norm = normalize(query);
@@ -210,7 +411,6 @@ function scoreRule(rule: Rule, query: string): number {
     if (norm.includes(t)) hits += 1;
   }
   if (hits === 0) return 0;
-  // Base score from trigger strength, boosted by filled required fields.
   const mapped = rule.map(query);
   const filledRequired = rule.required.filter((f) => mapped[f] !== undefined).length;
   const triggerScore = Math.min(1, hits * 0.5);
@@ -239,11 +439,153 @@ function keywordCandidates(query: string): { toolId: string; score: number }[] {
     }
     if (hits > 0) scored.push({ toolId: calc.id, score: Math.min(1, hits / 6) });
   }
-  // If nothing matched at all, surface a few popular tools as suggestions.
   if (scored.length === 0) {
     return ["loan", "percentage", "tip"].map((toolId) => ({ toolId, score: 0.1 }));
   }
   return scored.sort((a, b) => b.score - a.score).slice(0, 3);
+}
+
+/** Try to detect and compute an inline arithmetic expression. */
+function tryArithmetic(query: string): IntentResult | null {
+  const expr = toArithmeticExpression(query);
+  if (!expr) return null;
+  try {
+    const value = evaluateExpression(expr);
+    const rounded = Math.round(value * 1e10) / 1e10;
+    return {
+      toolId: null,
+      confidence: 1,
+      tier: "high",
+      parameters: {},
+      unresolvedFields: [],
+      candidates: [],
+      query,
+      recognizedLabel: "Arithmetic",
+      recognizedSummary: expr.replace(/\s+/g, " "),
+      autoCalculable: true,
+      inlineResult: { label: expr.replace(/\s+/g, " "), value: String(rounded) },
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Try to detect and compute an inline unit conversion. */
+function tryUnitConversion(query: string): IntentResult | null {
+  const norm = normalize(query);
+  if (!/convert|to|into|in\b|how many/.test(norm)) return null;
+  const units = extractUnits(query);
+  if (units.length < 2) return null;
+  const from = units.find((u) => u.value !== undefined) ?? units[0];
+  const to = units.find((u) => u !== from && u.dimension === from.dimension);
+  if (!to) return null;
+  const value = from.value ?? 1;
+  try {
+    const result = convert(from.dimension as Dimension, value, from.unit, to.unit);
+    const fromSym = getUnit(from.dimension as Dimension, from.unit).symbol;
+    const toSym = getUnit(from.dimension as Dimension, to.unit).symbol;
+    const formatted = formatConverted(result);
+    return {
+      toolId: "unit-converter",
+      confidence: 0.9,
+      tier: "high",
+      parameters: { dimension: from.dimension, value, from: from.unit, to: to.unit },
+      unresolvedFields: [],
+      candidates: [],
+      query,
+      recognizedLabel: "Unit Conversion",
+      recognizedSummary: `${value} ${fromSym} → ${toSym}`,
+      autoCalculable: true,
+      inlineResult: { label: `${value} ${fromSym}`, value: `${formatted} ${toSym}` },
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Currency word → code, for scanning unattached currency mentions. */
+const CURRENCY_SCAN_WORDS: Record<string, string> = {
+  dollar: "USD", dollars: "USD", usd: "USD", euro: "EUR", euros: "EUR",
+  pound: "GBP", pounds: "GBP", rupee: "INR", rupees: "INR", inr: "INR",
+  yen: "JPY", jpy: "JPY",
+};
+
+/** Try to detect a currency conversion (manual reference rate). */
+function tryCurrencyConversion(query: string): IntentResult | null {
+  const norm = normalize(query);
+  const monies = extractMoney(query);
+  if (monies.length === 0) return null;
+  const codes: string[] = [];
+  for (const m of monies) {
+    if (m.currency && !codes.includes(m.currency)) codes.push(m.currency);
+  }
+  for (const [word, code] of Object.entries(CURRENCY_SCAN_WORDS)) {
+    if (new RegExp(`\\b${word}\\b`).test(norm) && !codes.includes(code)) codes.push(code);
+  }
+  if (codes.length < 2) return null;
+  if (!/convert|in\b|to\b|into|how much|how many/.test(norm)) return null;
+  const [from, to] = codes;
+  const amount = monies[0].value;
+  return {
+    toolId: "currency-converter",
+    confidence: 0.8,
+    tier: "high",
+    parameters: { amount, from, to },
+    unresolvedFields: ["rate"],
+    candidates: [],
+    query,
+    recognizedLabel: "Currency Conversion",
+    recognizedSummary: `${amount} ${from} → ${to} (manual reference rate)`,
+    autoCalculable: false,
+    missingLabels: ["Exchange rate (manual reference, not live)"],
+  };
+}
+
+/** Try to detect a live countdown to a date. */
+function tryCountdown(query: string): IntentResult | null {
+  const norm = normalize(query);
+  if (!/how long until|countdown|days until|time until|until|how many days/.test(norm)) return null;
+  const dates = extractDates(query);
+  if (dates.length === 0) return null;
+  const target = dates[0];
+  return {
+    toolId: "countdown",
+    confidence: 0.9,
+    tier: "high",
+    parameters: { targetDate: target.iso },
+    unresolvedFields: [],
+    candidates: [],
+    query,
+    recognizedLabel: "Countdown",
+    recognizedSummary: `Until ${target.iso}${target.yearAssumed ? " (next occurrence)" : ""}`,
+    autoCalculable: true,
+    liveCountdownTarget: target.iso,
+  };
+}
+
+/** Try to detect a "duration from now" query. */
+function tryDurationFromNow(query: string): IntentResult | null {
+  const norm = normalize(query);
+  if (!/from now|later|in \d/.test(norm)) return null;
+  const durations = extractDurations(query);
+  if (durations.length === 0) return null;
+  const minutes = durations[0].minutes;
+  const target = new Date(Date.now() + minutes * 60_000);
+  const hh = String(target.getHours()).padStart(2, "0");
+  const mm = String(target.getMinutes()).padStart(2, "0");
+  return {
+    toolId: null,
+    confidence: 0.9,
+    tier: "high",
+    parameters: {},
+    unresolvedFields: [],
+    candidates: [],
+    query,
+    recognizedLabel: "Time From Now",
+    recognizedSummary: durations[0].raw,
+    autoCalculable: true,
+    inlineResult: { label: `In ${durations[0].raw}`, value: `${hh}:${mm}` },
+  };
 }
 
 /**
@@ -254,8 +596,16 @@ function keywordCandidates(query: string): { toolId: string; score: number }[] {
 export function parseIntent(query: string): IntentResult {
   const trimmed = query.trim();
   if (!trimmed) {
-    return { toolId: null, confidence: 0, parameters: {}, unresolvedFields: [], candidates: [], query };
+    return { toolId: null, confidence: 0, tier: "low", parameters: {}, unresolvedFields: [], candidates: [], query };
   }
+
+  const specialized =
+    tryArithmetic(trimmed) ??
+    tryUnitConversion(trimmed) ??
+    tryCurrencyConversion(trimmed) ??
+    tryCountdown(trimmed) ??
+    tryDurationFromNow(trimmed);
+  if (specialized) return specialized;
 
   let best: { rule: Rule; score: number } | null = null;
   for (const rule of RULES) {
@@ -265,21 +615,31 @@ export function parseIntent(query: string): IntentResult {
     }
   }
 
-  if (best && best.score >= CONFIDENCE_THRESHOLD) {
+  if (best && best.score >= MEDIUM_THRESHOLD) {
     const parameters = best.rule.map(query);
     const unresolvedFields = best.rule.required.filter((f) => parameters[f] === undefined);
+    const calc = getCalculator(best.rule.toolId);
+    const missingLabels = unresolvedFields.map(
+      (key) => calc?.fields.find((f) => f.key === key)?.label ?? key,
+    );
+    const autoCalculable = unresolvedFields.length === 0;
+    const tier = best.score >= HIGH_THRESHOLD && autoCalculable ? "high" : "medium";
     return {
       toolId: best.rule.toolId,
       confidence: best.score,
+      tier,
       parameters,
       unresolvedFields,
       candidates: [],
       query,
+      recognizedLabel: best.rule.label,
+      recognizedSummary: best.rule.summarize?.(parameters),
+      autoCalculable,
+      missingLabels,
     };
   }
 
-  // Low confidence — offer disambiguation candidates.
-  const candidates = keywordCandidates(query).map((c) => ({
+  const candidates: IntentCandidate[] = keywordCandidates(query).map((c) => ({
     toolId: c.toolId,
     name: CALCULATORS.find((x) => x.id === c.toolId)?.name ?? c.toolId,
     confidence: c.score,
@@ -288,6 +648,7 @@ export function parseIntent(query: string): IntentResult {
   return {
     toolId: best?.rule.toolId ?? candidates[0]?.toolId ?? null,
     confidence: best?.score ?? 0,
+    tier: "low",
     parameters: fallbackParams,
     unresolvedFields: best ? best.rule.required.filter((f) => fallbackParams[f] === undefined) : [],
     candidates,

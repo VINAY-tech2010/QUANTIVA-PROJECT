@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { sendFeedbackEmail, EmailNotConfiguredError } from "@/lib/email/send";
 
-const CATEGORIES = ["suggest", "feature", "bug", "complaint", "general", "contact"] as const;
+const CATEGORIES = ["suggest", "feature", "bug", "complaint", "general", "contact", "tool-request"] as const;
 type Category = (typeof CATEGORIES)[number];
 
 const MAX_MESSAGE = 5000;

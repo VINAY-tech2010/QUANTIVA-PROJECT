@@ -53,6 +53,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   complaint: "Complaint",
   general: "General feedback",
   contact: "Contact message",
+  "tool-request": "Tool request",
 };
 
 /** Escape user content for safe inclusion in an HTML email body. */
