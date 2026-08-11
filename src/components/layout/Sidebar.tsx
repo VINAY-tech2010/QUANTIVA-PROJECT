@@ -116,10 +116,11 @@ export function Sidebar() {
         />
       )}
 
-      {/* Sidebar: slide-in drawer on mobile, collapsible column on desktop */}
+      {/* Sidebar: slide-in drawer on mobile, sticky column on desktop that
+          stays below the header and does not scroll with the page */}
       <aside
         ref={panelRef}
-        className={`fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-border bg-surface/95 backdrop-blur-md transition-transform duration-200 md:static md:top-16 md:z-0 md:h-[calc(100vh-4rem)] md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-border bg-surface/95 backdrop-blur-md transition-transform duration-200 md:sticky md:top-16 md:z-0 md:h-[calc(100vh-4rem)] md:self-start md:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full md:hidden"
         }`}
         aria-label="Sidebar navigation"
