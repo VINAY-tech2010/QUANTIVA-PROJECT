@@ -1,0 +1,80 @@
+﻿import Link from "next/link";
+import type { Metadata } from "next";
+import { CATEGORIES } from "@/data/categories";
+import { calculatorsByCategory } from "@/data/calculators";
+import { IntentSearch } from "@/components/search/IntentSearch";
+import { BetweenContentAd } from "@/components/ads/placements";
+import { SITE, buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: `${SITE.name} — ${SITE.tagline}`,
+  description: SITE.description,
+  path: "/",
+  keywords: ["calculator", "decision", "money", "loan", "budget", "productivity", "time"],
+});
+
+export default function Home() {
+  return (
+    <main className="mx-auto max-w-6xl px-4 sm:px-6">
+      {/* Hero */}
+      <section className="flex flex-col items-center py-20 text-center sm:py-28">
+        <span className="chip mb-6">Premium decision utility</span>
+        <h1 className="max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-6xl">
+          Instant answers to <span className="text-gradient">everyday decisions</span>
+        </h1>
+        <p className="mt-5 max-w-xl text-lg text-muted">
+          65 precise calculators for money, buying, time, health, science and more.
+          Ask in plain language — get a clear, structured answer.
+        </p>
+        <div className="mt-10 w-full max-w-2xl">
+          <IntentSearch />
+        </div>
+      </section>
+
+      {/* Categories */}
+      {CATEGORIES.map((cat, i) => {
+        const tools = calculatorsByCategory(cat.slug);
+        return (
+          <div key={cat.slug}>
+            <section className="py-10">
+              <div className="mb-6 flex items-end justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight">{cat.name}</h2>
+                  <p className="mt-1 text-sm text-muted">{cat.tagline}</p>
+                </div>
+                <Link
+                  href={`/${cat.slug}`}
+                  className="text-sm font-medium text-violet-soft hover:text-violet"
+                >
+                  View all →
+                </Link>
+              </div>
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {tools.map((tool) => (
+                  <Link
+                    key={tool.id}
+                    href={`/calculator/${tool.slug}`}
+                    className="card card-hover flex flex-col p-6"
+                  >
+                    <h3 className="font-semibold">{tool.question}</h3>
+                    <p className="mt-2 flex-1 text-sm text-muted">{tool.supporting}</p>
+                    <span className="mt-4 text-sm font-medium text-violet-soft">
+                      {tool.name} →
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+            {/* A single in-content ad after the first category only — the home
+                page must not become an ad directory. */}
+            {i === 0 && (
+              <div className="py-2">
+                <BetweenContentAd />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </main>
+  );
+}

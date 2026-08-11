@@ -1,0 +1,148 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { getCalculator, listCalculators } from "@/data/calculators";
+import { getCategory } from "@/data/categories";
+import { CalculatorForm } from "@/components/calculator/CalculatorForm";
+import { SidebarAd, BetweenContentAd, CalculatorBottomAd } from "@/components/ads/placements";
+import { buildMetadata, breadcrumbJsonLd, calculatorJsonLd } from "@/lib/seo";
+
+export function generateStaticParams() {
+  return listCalculators().map((c) => ({ slug: c.slug }));
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const calc = getCalculator(slug);
+  if (!calc) return {};
+  return buildMetadata({
+    title: calc.name,
+    description: calc.description,
+    path: `/calculator/${calc.slug}`,
+    keywords: calc.keywords,
+  });
+}
+
+export default async function CalculatorPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const { slug } = await params;
+  const calc = getCalculator(slug);
+  if (!calc) notFound();
+
+  // Pre-fill inputs from the query string (e.g. intent-search deep links).
+  const sp = await searchParams;
+  const initialInputs: Record<string, number | string> = {};
+  for (const field of calc.fields) {
+    const raw = sp[field.key];
+    const v = Array.isArray(raw) ? raw[0] : raw;
+    if (v === undefined) continue;
+    if (
+      field.type === "time" ||
+      field.type === "date" ||
+      field.type === "datetime" ||
+      field.type === "text" ||
+      field.type === "textarea" ||
+      field.type === "select"
+    ) {
+      initialInputs[field.key] = v;
+    } else {
+      const n = Number(v);
+      if (Number.isFinite(n)) initialInputs[field.key] = n;
+    }
+  }
+
+  const category = getCategory(calc.category);
+  const related = calc.related
+    .map((id) => getCalculator(id))
+    .filter((c): c is NonNullable<typeof c> => Boolean(c));
+
+  // Strip the non-serializable calculate function before crossing the
+  // server/client boundary; the client resolves it from the registry by id.
+  const config = Object.fromEntries(
+    Object.entries(calc).filter(([k]) => k !== "calculate"),
+  ) as Omit<typeof calc, "calculate">;
+
+  return (
+    <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            breadcrumbJsonLd([
+              { name: "Home", path: "/" },
+              ...(category ? [{ name: category.name, path: `/${category.slug}` }] : []),
+              { name: calc.name, path: `/calculator/${calc.slug}` },
+            ]),
+          ),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(calculatorJsonLd(calc)) }}
+      />
+      <nav className="mb-6 text-sm text-muted" aria-label="Breadcrumb">
+        <Link href="/" className="hover:text-foreground">Home</Link>
+        <span className="mx-2">/</span>
+        {category && (
+          <>
+            <Link href={`/${category.slug}`} className="hover:text-foreground">
+              {category.name}
+            </Link>
+            <span className="mx-2">/</span>
+          </>
+        )}
+        <span className="text-foreground">{calc.name}</span>
+      </nav>
+
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{calc.question}</h1>
+        <p className="mt-3 max-w-2xl text-muted">{calc.supporting}</p>
+      </header>
+
+      <div className="flex flex-col gap-8 lg:flex-row">
+        <div className="min-w-0 flex-1">
+          <CalculatorForm calculator={config} initialInputs={initialInputs} />
+        </div>
+        <div className="w-full shrink-0 lg:w-[300px]">
+          <SidebarAd />
+        </div>
+      </div>
+
+      <div className="mt-10">
+        <BetweenContentAd />
+      </div>
+
+      <section className="mt-12">
+        <h2 className="text-lg font-semibold">How it works</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">{calc.methodology}</p>
+      </section>
+
+      {related.length > 0 && (
+        <section className="mt-12">
+          <h2 className="text-lg font-semibold">Related tools</h2>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {related.map((r) => (
+              <Link key={r.id} href={`/calculator/${r.slug}`} className="card card-hover p-5">
+                <p className="font-medium">{r.name}</p>
+                <p className="mt-1 text-sm text-muted">{r.question}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div className="mt-12">
+        <CalculatorBottomAd />
+      </div>
+    </main>
+  );
+}
