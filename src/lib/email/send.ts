@@ -179,6 +179,11 @@ async function sendViaResend(message: EmailMessage): Promise<void> {
   if (!apiKey) {
     throw new EmailNotConfiguredError("No EMAIL_PROVIDER_API_KEY configured");
   }
+  // Treat an empty/whitespace sender as unset so the verified default is used.
+  const from =
+    message.from && message.from.trim().length > 0
+      ? message.from
+      : "QUANTIVA <onboarding@resend.dev>";
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -186,7 +191,7 @@ async function sendViaResend(message: EmailMessage): Promise<void> {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      from: message.from ?? "QUANTIVA <onboarding@resend.dev>",
+      from,
       to: [message.to],
       subject: message.subject,
       text: message.text,
