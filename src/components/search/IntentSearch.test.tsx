@@ -69,4 +69,20 @@ describe("IntentSearch", () => {
     expect(push).not.toHaveBeenCalled();
     expect(screen.getByText(/couldn't identify that/i)).toBeInTheDocument();
   });
+
+  it("submits the search when the Enter key is pressed in the input", () => {
+    render(<IntentSearch />);
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "Loan Calculator" } });
+    fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
+    expect(push).toHaveBeenCalledWith("/calculator/loan");
+  });
+
+  it("does not submit on a non-Enter key press", () => {
+    render(<IntentSearch />);
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "Loan Calculator" } });
+    fireEvent.keyDown(input, { key: "a", code: "KeyA" });
+    expect(push).not.toHaveBeenCalled();
+  });
 });

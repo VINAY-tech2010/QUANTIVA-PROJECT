@@ -56,8 +56,7 @@ export function IntentSearch() {
     router.push(`/improvement?${sp.toString()}`);
   }
 
-  function submit(e: FormEvent) {
-    e.preventDefault();
+  function runSearch() {
     const trimmed = query.trim();
     if (!trimmed) return;
 
@@ -104,12 +103,26 @@ export function IntentSearch() {
     });
   }
 
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    runSearch();
+  }
+
   return (
     <div className="w-full">
-      <form onSubmit={submit} className="relative">
+      <form onSubmit={submit} className="search-glass">
         <label htmlFor="intent-search" className="sr-only">
           Ask a question or search for a calculator
         </label>
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+        </span>
         <input
           id="intent-search"
           type="text"
@@ -118,8 +131,14 @@ export function IntentSearch() {
             setQuery(e.target.value);
             if (panel.kind !== "idle") setPanel({ kind: "idle" });
           }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              runSearch();
+            }
+          }}
           placeholder="Ask QUANTIVA… e.g. can I afford a $2000 laptop?"
-          className="input py-4 pl-5 pr-32 text-base"
+          className="input py-4 pl-11 pr-32 text-base"
           autoComplete="off"
         />
         <button
@@ -131,7 +150,7 @@ export function IntentSearch() {
       </form>
 
       {panel.kind === "calculation" && (
-        <div className="card mt-3 p-4" role="status">
+        <div className="panel-glass mt-3 p-4" role="status">
           <p className="text-xs font-medium uppercase tracking-wide text-violet-soft">
             {panel.result.recognizedLabel ?? "Result"}
           </p>
@@ -160,7 +179,7 @@ export function IntentSearch() {
       )}
 
       {panel.kind === "missing-tool" && (
-        <div className="card mt-3 p-4" role="status">
+        <div className="panel-glass mt-3 p-4" role="status">
           <p className="text-sm font-semibold text-foreground">Tool not available yet</p>
           <p className="mt-1 text-sm text-muted">
             Sorry, this tool isn&apos;t implemented in QUANTIVA yet. You can request it and it may
@@ -177,7 +196,7 @@ export function IntentSearch() {
       )}
 
       {panel.kind === "no-result" && (
-        <div className="card mt-3 p-4" role="status">
+        <div className="panel-glass mt-3 p-4" role="status">
           <p className="text-sm font-semibold text-foreground">We couldn&apos;t identify that</p>
           <p className="mt-1 text-sm text-muted">
             Try searching for a calculator by name, or describe what you want to calculate.

@@ -269,3 +269,67 @@ html {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/* ------------------------------------------------------------------ */
+/* Intelligent search — glass treatment                                */
+/* ------------------------------------------------------------------ */
+
+/* Frosted-glass search shell with an ambient accent glow. */
+.search-glass {
+  position: relative;
+  border-radius: 1rem;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.04) inset,
+    0 20px 50px -24px rgba(0, 0, 0, 0.7);
+  transition: border-color 0.2s ease, box-shadow 0.25s ease, transform 0.2s ease;
+}
+.search-glass:focus-within {
+  border-color: hsl(var(--accent-hue) 72% 60% / 0.55);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.05) inset,
+    0 0 0 4px hsl(var(--accent-hue) 72% 60% / 0.14),
+    0 24px 60px -24px var(--accent-glow);
+  transform: translateY(-1px);
+}
+/* The inner input is transparent so the glass shell shows through. */
+.search-glass .input {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+.search-glass .input:focus {
+  border: none;
+  box-shadow: none;
+}
+
+/* Glass result panel — floats above the page with a soft accent edge. */
+.panel-glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 1rem;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.04) inset,
+    0 16px 44px -20px rgba(0, 0, 0, 0.65);
+  animation: panel-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel-glass {
+    animation: none;
+  }
+}
