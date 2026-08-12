@@ -5,7 +5,7 @@ import { getCalculator, listCalculators } from "@/data/calculators";
 import { getCategory } from "@/data/categories";
 import { CalculatorForm } from "@/components/calculator/CalculatorForm";
 import { SidebarAd, BetweenContentAd, CalculatorBottomAd } from "@/components/ads/placements";
-import { buildMetadata, breadcrumbJsonLd, calculatorJsonLd } from "@/lib/seo";
+import { buildMetadata, breadcrumbJsonLd, calculatorJsonLd, faqJsonLd } from "@/lib/seo";
 
 export function generateStaticParams() {
   return listCalculators().map((c) => ({ slug: c.slug }));
