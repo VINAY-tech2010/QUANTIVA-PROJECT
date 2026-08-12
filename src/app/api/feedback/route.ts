@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { sendFeedbackEmail, EmailNotConfiguredError } from "@/lib/email/send";
 
+export const runtime = "nodejs";
+
 const CATEGORIES = ["suggest", "feature", "bug", "complaint", "general", "contact", "tool-request"] as const;
 type Category = (typeof CATEGORIES)[number];
 
