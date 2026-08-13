@@ -9,16 +9,17 @@ import { useLiveCountdown, formatCountdown } from "@/lib/time/useLiveCountdown";
 import type { IntentResult } from "@/types";
 
 const SUGGESTIONS = [
-  "can I afford a $2000 laptop?",
-  "how long is 9:30 to 4:45?",
-  "monthly payment on a $25000 loan at 6%",
-  "what is 25% off $120",
+  "calculate live countdown to 12/03/2027",
+  "500000 loan at 8% for 5 years",
+  "what is 18% of 4500",
+  "convert 10 miles to kilometers",
 ];
 
 /** The kinds of result panel the search can show. */
 type PanelState =
   | { kind: "idle" }
   | { kind: "calculation"; result: IntentResult }
+  | { kind: "suggestion"; result: IntentResult; toolName: string }
   | { kind: "missing-tool"; requestedName: string }
   | { kind: "no-result"; candidates: { toolId: string; name: string }[] };
 
@@ -69,13 +70,8 @@ export function IntentSearch() {
     const trimmed = (raw ?? query).trim();
     if (!trimmed) return;
 
-    // 1. Calculation intent (existing natural-language engine). A confident
-    //    calculation always wins over tool search.
+    // 1. Calculation intent (existing natural-language engine).
     const intent = parseIntent(trimmed);
-    const isConfidentCalc =
-      intent.toolId !== null &&
-      intent.confidence >= 0.45 &&
-      (intent.tier === "high" || intent.tier === "medium");
 
     // Inline-computable intents (arithmetic, unit conversion, countdown,
     // duration-from-now) show a result panel rather than navigating away.
@@ -84,27 +80,49 @@ export function IntentSearch() {
       return;
     }
 
-    if (isConfidentCalc && intent.toolId) {
-      // Auto-calculable: route straight to the calculator with prefilled
-      // fields so it computes on landing.
+    // 2. High confidence: open the correct tool automatically, prefilled so
+    //    it computes on landing.
+    if (
+      intent.toolId !== null &&
+      intent.tier === "high" &&
+      intent.confidence >= 0.45 &&
+      intent.autoCalculable
+    ) {
       goToCalculator(intent.toolId, intent.parameters);
       return;
     }
 
-    // 2. Tool search — exact / fuzzy match against the registry.
+    // 3. Tool search — an exact match ("loan", "mortgage", "countdown") always
+    //    navigates straight to the tool.
     const tool = matchTool(trimmed);
-    if ((tool.kind === "exact" || tool.kind === "fuzzy") && tool.calculator) {
+    if (tool.kind === "exact" && tool.calculator) {
       goToCalculator(tool.calculator.id, {});
       return;
     }
 
-    // 3. Missing tool — the user named a tool we don't implement.
+    // 4. Medium confidence: show an interpretation suggestion with a clear
+    //    action instead of guessing. Prefilled params travel with it.
+    if (intent.toolId !== null && intent.confidence >= 0.45 && intent.tier === "medium") {
+      const calc = getCalculator(intent.toolId);
+      if (calc) {
+        setPanel({ kind: "suggestion", result: intent, toolName: calc.name });
+        return;
+      }
+    }
+
+    // 5. Fuzzy tool match (typos, near names) — navigate directly.
+    if (tool.kind === "fuzzy" && tool.calculator) {
+      goToCalculator(tool.calculator.id, {});
+      return;
+    }
+
+    // 6. Missing tool — the user named a tool we don't implement.
     if (looksLikeToolRequest(trimmed)) {
       setPanel({ kind: "missing-tool", requestedName: tool.requestedName });
       return;
     }
 
-    // 4. No identifiable intent — offer a few relevant tools, never the
+    // 7. No identifiable intent — offer a few relevant tools, never the
     //    whole catalog.
     setPanel({
       kind: "no-result",
@@ -146,7 +164,7 @@ export function IntentSearch() {
               runSearch();
             }
           }}
-          placeholder="Ask QUANTIVA… e.g. can I afford a $2000 laptop?"
+          placeholder="What do you need to calculate?"
           className="input py-4 pl-11 pr-32 text-base"
           autoComplete="off"
         />
@@ -161,7 +179,7 @@ export function IntentSearch() {
       {panel.kind === "calculation" && (
         <div className="panel-glass mt-3 p-4" role="status">
           <p className="text-xs font-medium uppercase tracking-wide text-violet-soft">
-            {panel.result.recognizedLabel ?? "Result"}
+            Understanding: {panel.result.recognizedLabel ?? "Result"}
           </p>
           {panel.result.recognizedSummary && (
             <p className="mt-0.5 text-sm text-muted">{panel.result.recognizedSummary}</p>
@@ -184,6 +202,31 @@ export function IntentSearch() {
               Open calculator →
             </button>
           )}
+        </div>
+      )}
+
+      {panel.kind === "suggestion" && (
+        <div className="panel-glass mt-3 p-4" role="status">
+          <p className="text-xs font-medium uppercase tracking-wide text-violet-soft">
+            Understanding: {panel.result.recognizedLabel ?? panel.toolName}
+          </p>
+          <p className="mt-1 text-sm text-muted">
+            Looks like you&apos;re trying to calculate{" "}
+            {panel.result.recognizedSummary ?? panel.toolName.toLowerCase()}.
+          </p>
+          {panel.result.missingLabels && panel.result.missingLabels.length > 0 && (
+            <p className="mt-1 text-sm text-muted">
+              Still needed: {panel.result.missingLabels.join(", ")} — you can fill{" "}
+              {panel.result.missingLabels.length === 1 ? "it" : "them"} in on the calculator.
+            </p>
+          )}
+          <button
+            type="button"
+            className="btn-primary mt-3"
+            onClick={() => goToCalculator(panel.result.toolId as string, panel.result.parameters)}
+          >
+            Open {panel.toolName} →
+          </button>
         </div>
       )}
 

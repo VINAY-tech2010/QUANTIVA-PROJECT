@@ -44,6 +44,8 @@ export interface DateMention {
   iso: string;
   /** True when the year was not explicitly stated (resolved to next occurrence). */
   yearAssumed: boolean;
+  /** True when both numeric parts are ≤12 and DD/MM was assumed (India locale). */
+  ambiguous?: boolean;
   raw: string;
 }
 
@@ -305,16 +307,16 @@ export function extractDates(query: string): DateMention[] {
   }
 
   const monthNames = Object.keys(MONTHS).join("|");
-  // "25 December 2026" / "25 December"
-  const dmyRe = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${monthNames})(?:\\s+(\\d{4}))?\\b`, "g");
+  // "25 December 2026" / "25 December" / "12-Mar-2027"
+  const dmyRe = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?[\\s-]+(${monthNames})(?:[\\s-]+(\\d{4}))?\\b`, "g");
   while ((m = dmyRe.exec(norm)) !== null) {
     const day = parseInt(m[1], 10);
     const month = MONTHS[m[2]];
     const year = m[3] ? parseInt(m[3], 10) : undefined;
     out.push({ iso: buildIso(year, month, day, now), yearAssumed: year === undefined, raw: m[0] });
   }
-  // "December 25 2026" / "December 25"
-  const mdyRe = new RegExp(`\\b(${monthNames})\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:\\s*,?\\s*(\\d{4}))?\\b`, "g");
+  // "December 25 2026" / "December 25" / "Mar-12-2027"
+  const mdyRe = new RegExp(`\\b(${monthNames})[\\s-]+(\\d{1,2})(?:st|nd|rd|th)?(?:[\\s,]+(\\d{4}))?\\b`, "g");
   while ((m = mdyRe.exec(norm)) !== null) {
     const month = MONTHS[m[1]];
     const day = parseInt(m[2], 10);
@@ -323,22 +325,23 @@ export function extractDates(query: string): DateMention[] {
     if (!dup) out.push({ iso: buildIso(year, month, day, now), yearAssumed: year === undefined, raw: m[0] });
   }
 
-  // Numeric: 15/03/2027 or 03/15/2027
-  const numRe = /\b(\d{1,2})[/.](\d{1,2})[/.](\d{4})\b/g;
+  // Numeric: 15/03/2027, 03-15-2027, 15.03.2027 (DD/MM preferred — India locale)
+  const numRe = /\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})\b/g;
   while ((m = numRe.exec(norm)) !== null) {
     const a = parseInt(m[1], 10);
     const b = parseInt(m[2], 10);
     const year = parseInt(m[3], 10);
-    let day: number, month: number;
+    let day: number, month: number, ambiguous = false;
     if (a > 12) {
       day = a; month = b - 1;
     } else if (b > 12) {
       day = b; month = a - 1;
     } else {
       day = a; month = b - 1; // ambiguous → DD/MM
+      ambiguous = true;
     }
     if (month >= 0 && month <= 11 && day >= 1 && day <= 31) {
-      out.push({ iso: buildIso(year, month, day, now), yearAssumed: false, raw: m[0] });
+      out.push({ iso: buildIso(year, month, day, now), yearAssumed: false, ambiguous, raw: m[0] });
     }
   }
 

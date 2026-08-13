@@ -12,8 +12,60 @@ import {
   extractUnits,
   extractDates,
   extractDurations,
+  expandMagnitude,
   toArithmeticExpression,
 } from "./tokenizer";
+
+const firstMoney = (q: string) => extractMoney(q)[0]?.value;
+const firstPercent = (q: string) => extractPercents(q)[0]?.value;
+const firstNumber = (q: string) => extractNumbers(q)[0]?.value;
+
+/** Extract a term in years from phrases like "for 5 years", "5 yr", "5-year", "36 months". */
+function extractYears(q: string): number | undefined {
+  const norm = normalize(q);
+  const y = /(\d+(?:\.\d+)?)\s?(?:-\s?)?(years?|yrs?|y)\b/.exec(norm);
+  if (y) return parseFloat(y[1]);
+  const mo = /(\d+(?:\.\d+)?)\s?months?\b/.exec(norm);
+  return mo ? parseFloat(mo[1]) / 12 : undefined;
+}
+
+/** Recurring contribution frequencies mapped to calculator select values. */
+const RECURRING_FREQUENCY: Record<string, string> = {
+  week: "weekly",
+  fortnight: "bi-weekly",
+  month: "monthly",
+  year: "yearly",
+};
+
+const RECURRING_PERIODS_PER_YEAR: Record<string, number> = {
+  week: 52,
+  fortnight: 26,
+  month: 12,
+  year: 1,
+};
+
+/**
+ * Extract a recurring amount like "5000 every month", "$200 per week",
+ * "10k a year". Returns the amount, its raw mention, and the frequency.
+ */
+function extractRecurring(
+  q: string,
+): { amount: number; raw: string; frequency: string; periodsPerYear: number } | undefined {
+  const norm = normalize(q);
+  const m =
+    /(?:[$€£₹¥]\s?)?(\d[\d,]*(?:\.\d+)?)\s?(lakh|lakhs|lac|crore|crores|million|millions|billion|billions|thousand)?\s?(?:rupees?|rs|inr|dollars?|usd|euros?|pounds?)?\s*(?:every|per|each|a)\s+(week|month|year|fortnight)\b/.exec(
+      norm,
+    );
+  if (!m) return undefined;
+  const amount = expandMagnitude(m[1], m[2]);
+  if (amount === undefined) return undefined;
+  return {
+    amount,
+    raw: m[0],
+    frequency: RECURRING_FREQUENCY[m[3]],
+    periodsPerYear: RECURRING_PERIODS_PER_YEAR[m[3]],
+  };
+}
 
 interface Rule {
   toolId: string;
@@ -27,16 +79,6 @@ interface Rule {
   label: string;
   /** Build a short human summary of what was understood. */
   summarize?: (params: CalculatorInputs) => string;
-}
-
-const firstMoney = (q: string) => extractMoney(q)[0]?.value;
-const firstPercent = (q: string) => extractPercents(q)[0]?.value;
-const firstNumber = (q: string) => extractNumbers(q)[0]?.value;
-
-/** Extract a term in years from phrases like "for 5 years", "5 yr", "5-year". */
-function extractYears(q: string): number | undefined {
-  const m = /(\d+(?:\.\d+)?)\s?(?:-\s?)?(years?|yrs?|y)\b/.exec(normalize(q));
-  return m ? parseFloat(m[1]) : undefined;
 }
 
 /** Extract a count of people from "between 4 people", "for 3", "split 3 ways". */
@@ -165,6 +207,45 @@ const RULES: Rule[] = [
       `Mortgage of ${p.homePrice ?? "?"} at ${p.interestRate ?? "?"}% for ${p.termYears ?? "?"} years`,
   },
   {
+    toolId: "rent-affordability",
+    label: "Rent Affordability",
+    // Must stay ahead of the generic affordability rule: "rent" is the
+    // stronger signal when both "rent" and "afford" appear.
+    triggers: ["rent", "rental", "lease", "apartment", "how much rent", "rent affordability", "rent can", "rent i can afford"],
+    required: ["monthlyIncome"],
+    map: (q) => {
+      const norm = normalize(q);
+      const out: CalculatorInputs = {};
+      const incomeMatch =
+        /(?:salary|income|earn|making|make|on)\s+(?:of\s+)?[$₹]?(\d[\d,]*(?:\.\d+)?)/.exec(norm);
+      if (incomeMatch) out.monthlyIncome = parseFloat(incomeMatch[1].replace(/,/g, ""));
+      else {
+        const money = firstMoney(q) ?? firstNumber(q);
+        if (money !== undefined) out.monthlyIncome = money;
+      }
+      const pct = firstPercent(q);
+      if (pct !== undefined) out.targetPercent = pct;
+      return out;
+    },
+    summarize: (p) => `Rent on income ${p.monthlyIncome ?? "?"}`,
+  },
+  {
+    toolId: "age",
+    label: "Age Calculation",
+    // "born" / "how old" are word-boundary-safe; bare "age" would match inside
+    // "mortgage", so it is deliberately not a trigger here.
+    triggers: ["how old", "born", "date of birth", "dob", "my age", "birth"],
+    required: ["birthDate"],
+    map: (q) => {
+      const dates = extractDates(q);
+      const out: CalculatorInputs = {};
+      if (dates[0]) out.birthDate = dates[0].iso;
+      if (dates[1]) out.asOfDate = dates[1].iso;
+      return out;
+    },
+    summarize: (p) => `Age from date of birth ${p.birthDate ?? "?"}`,
+  },
+  {
     toolId: "affordability",
     label: "Affordability Check",
     triggers: ["can i afford", "afford", "should i buy"],
@@ -217,6 +298,28 @@ const RULES: Rule[] = [
       return out;
     },
     summarize: (p) => `Tip on ${p.billAmount ?? "?"}${p.tipPercent !== undefined ? ` at ${p.tipPercent}%` : ""}`,
+  },
+  {
+    toolId: "debt-payoff",
+    label: "Debt Payoff",
+    // Phrase triggers ("pay off", "paid off") outrank discount's bare "off".
+    triggers: ["debt", "pay off", "paid off", "payoff", "debt-free", "debt free", "owe", "credit card"],
+    required: ["balance", "interestRate", "monthlyPayment"],
+    map: (q) => {
+      const out: CalculatorInputs = {};
+      const rec = extractRecurring(q);
+      const rate = firstPercent(q);
+      if (rec) out.monthlyPayment = rec.amount;
+      // Balance = the first money/number that is not the recurring payment.
+      const monies = extractMoney(q).filter((x) => !rec || x.raw !== rec.raw.trim());
+      const nums = extractNumbers(q).filter((x) => !rec || !rec.raw.includes(x.raw));
+      const balance = monies[0]?.value ?? nums[0]?.value;
+      if (balance !== undefined) out.balance = balance;
+      if (rate !== undefined) out.interestRate = rate;
+      return out;
+    },
+    summarize: (p) =>
+      `Pay off ${p.balance ?? "?"} at ${p.interestRate ?? "?"}% paying ${p.monthlyPayment ?? "?"}/month`,
   },
   {
     toolId: "discount",
@@ -341,15 +444,45 @@ const RULES: Rule[] = [
   {
     toolId: "savings-goal",
     label: "Savings Goal",
-    triggers: ["save", "savings goal", "how long to save"],
-    required: ["goal"],
+    triggers: ["save", "savings", "savings goal", "how long to save", "put away", "set aside"],
+    required: ["targetAmount", "years"],
     map: (q) => {
-      const goal = firstMoney(q) ?? firstNumber(q);
       const out: CalculatorInputs = {};
-      if (goal !== undefined) out.goal = goal;
+      const years = extractYears(q);
+      if (years !== undefined) out.years = years;
+      const rec = extractRecurring(q);
+      if (rec) {
+        // "save 5000 every month for 3 years" — the user gives a recurring
+        // contribution; the implied goal is the total they will put aside.
+        out.frequency = rec.frequency;
+        if (years !== undefined) {
+          out.targetAmount = Math.round(rec.amount * rec.periodsPerYear * years);
+        }
+      } else {
+        const goal = firstMoney(q) ?? firstNumber(q);
+        if (goal !== undefined) out.targetAmount = goal;
+      }
+      const pct = firstPercent(q);
+      if (pct !== undefined) out.growthRate = pct;
       return out;
     },
-    summarize: (p) => `Save ${p.goal ?? "?"}`,
+    summarize: (p) =>
+      `Save towards ${p.targetAmount ?? "?"} over ${p.years ?? "?"} years (${p.frequency ?? "monthly"})`,
+  },
+  {
+    toolId: "sales-tax",
+    label: "Sales Tax",
+    triggers: ["sales tax", "tax on", "vat", "gst", "tax"],
+    required: ["price"],
+    map: (q) => {
+      const price = firstMoney(q) ?? firstNumber(q);
+      const pct = firstPercent(q);
+      const out: CalculatorInputs = {};
+      if (price !== undefined) out.price = price;
+      if (pct !== undefined) out.taxRate = pct;
+      return out;
+    },
+    summarize: (p) => `Tax on ${p.price ?? "?"}${p.taxRate !== undefined ? ` at ${p.taxRate}%` : ""}`,
   },
   {
     toolId: "meeting-cost",
@@ -375,15 +508,35 @@ const RULES: Rule[] = [
   {
     toolId: "freelance-rate",
     label: "Freelance Rate",
-    triggers: ["freelance rate", "hourly rate", "charge per hour", "day rate"],
-    required: [],
+    triggers: [
+      "freelance rate",
+      "freelance",
+      "freelancer",
+      "hourly rate",
+      "charge per hour",
+      "day rate",
+      "should i charge",
+      "what to charge",
+      "consulting rate",
+      "contractor rate",
+    ],
+    required: ["targetIncome"],
     map: (q) => {
-      const salary = firstMoney(q);
       const out: CalculatorInputs = {};
-      if (salary !== undefined) out.targetIncome = salary;
+      const rec = extractRecurring(q);
+      if (rec) {
+        // The calculator expects an ANNUAL take-home target; convert
+        // "60000 per month" → 720000, "2000 per week" → 104000.
+        out.targetIncome = Math.round(rec.amount * rec.periodsPerYear);
+      } else {
+        const salary = firstMoney(q) ?? firstNumber(q);
+        if (salary !== undefined) out.targetIncome = salary;
+      }
+      const pct = firstPercent(q);
+      if (pct !== undefined) out.taxPercent = pct;
       return out;
     },
-    summarize: () => "Freelance rate",
+    summarize: (p) => `Freelance rate for ${p.targetIncome ?? "?"} annual take-home`,
   },
   {
     toolId: "bmi",
@@ -408,7 +561,12 @@ function scoreRule(rule: Rule, query: string): number {
   const norm = normalize(query);
   let hits = 0;
   for (const t of rule.triggers) {
-    if (norm.includes(t)) hits += 1;
+    // "% of" must not match inside "% off" (that is a discount phrasing).
+    const matched = t === "% of" ? /% of(?!f)/.test(norm) : norm.includes(t);
+    if (!matched) continue;
+    // Multi-word phrase triggers ("pay off", "how old", "can i afford") are a
+    // much stronger signal than single words, so they count double.
+    hits += t.includes(" ") ? 2 : 1;
   }
   if (hits === 0) return 0;
   const mapped = rule.map(query);
@@ -447,6 +605,9 @@ function keywordCandidates(query: string): { toolId: string; score: number }[] {
 
 /** Try to detect and compute an inline arithmetic expression. */
 function tryArithmetic(query: string): IntentResult | null {
+  // Queries containing a recognizable date ("12/03/2027", "25 December 2026")
+  // are never arithmetic — otherwise "12/03/2027" would be read as 12÷3÷2027.
+  if (extractDates(query).length > 0) return null;
   const expr = toArithmeticExpression(query);
   if (!expr) return null;
   try {
@@ -557,7 +718,7 @@ function tryCountdown(query: string): IntentResult | null {
     candidates: [],
     query,
     recognizedLabel: "Countdown",
-    recognizedSummary: `Until ${target.iso}${target.yearAssumed ? " (next occurrence)" : ""}`,
+    recognizedSummary: `Until ${target.iso}${target.yearAssumed ? " (next occurrence)" : ""}${target.ambiguous ? " — interpreted as DD/MM/YYYY" : ""}`,
     autoCalculable: true,
     liveCountdownTarget: target.iso,
   };

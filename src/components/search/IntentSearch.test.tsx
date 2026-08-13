@@ -88,4 +88,50 @@ describe("IntentSearch", () => {
     fireEvent.keyDown(input, { key: "a", code: "KeyA" });
     expect(push).not.toHaveBeenCalled();
   });
+
+  it("uses the natural-language placeholder", () => {
+    render(<IntentSearch />);
+    expect(
+      screen.getByPlaceholderText("What do you need to calculate?"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a live countdown interpretation for a date countdown query", () => {
+    typeAndSubmit("calculate live countdown to 12/03/2027");
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.getByText(/Understanding: Countdown/i)).toBeInTheDocument();
+    expect(screen.getByText(/2027-03-12/)).toBeInTheDocument();
+  });
+
+  it("shows an interpretation suggestion for a medium-confidence query instead of guessing", () => {
+    typeAndSubmit("how much rent can I afford");
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.getByText(/Understanding: Rent Affordability/i)).toBeInTheDocument();
+    expect(screen.getByText(/Looks like you're trying to calculate/i)).toBeInTheDocument();
+    expect(screen.getByText(/Still needed:/i)).toBeInTheDocument();
+  });
+
+  it("opens the suggested calculator from the suggestion panel", () => {
+    typeAndSubmit("how much rent can I afford");
+    const openBtn = screen.getByRole("button", { name: /Open Rent Affordability Calculator/i });
+    fireEvent.click(openBtn);
+    expect(push).toHaveBeenCalledWith("/calculator/rent-affordability");
+  });
+
+  it("navigates directly for plain keyword searches", () => {
+    typeAndSubmit("mortgage");
+    expect(push).toHaveBeenCalledWith("/calculator/mortgage");
+  });
+
+  it("routes a fully-specified natural-language loan query prefilled", () => {
+    typeAndSubmit("500000 loan at 8% for 5 years");
+    expect(push).toHaveBeenCalledWith(
+      "/calculator/loan?principal=500000&interestRate=8&termYears=5",
+    );
+  });
+
+  it("routes an age query to the age calculator with the birth date prefilled", () => {
+    typeAndSubmit("how old am I if I was born 15/08/2009");
+    expect(push).toHaveBeenCalledWith("/calculator/age?birthDate=2009-08-15");
+  });
 });
