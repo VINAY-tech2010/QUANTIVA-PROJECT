@@ -17,18 +17,18 @@ const LEGAL_LINKS = [
 
 const FAQ_ITEMS = [
   {
-    question: "How do I use QUANTIVA?",
+    question: "How do I use calkulater?",
     answer:
       "Type a question or calculator request in the search box, then choose an answer or follow the best matching tool.",
   },
   {
     question: "Can I use this for finance, health, or time planning?",
     answer:
-      "Yes. QUANTIVA covers everyday money, health, time, productivity, and decision tools with easy-to-read results.",
+      "Yes. calkulater covers everyday money, health, time, productivity, and decision tools with easy-to-read results.",
   },
   {
     question: "Is the site free to use?",
-    answer: "Yes, QUANTIVA is free to use and designed to help you make smarter decisions quickly.",
+    answer: "Yes, calkulater is free to use and designed to help you make smarter decisions quickly.",
   },
 ];
 
@@ -37,7 +37,7 @@ export function SiteFooter() {
     <footer className="border-t border-white/5 py-10">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:px-6 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <p className="text-lg font-bold text-gradient">QUANTIVA</p>
+          <p className="text-lg font-bold text-gradient">calkulater</p>
           <p className="mt-2 text-sm text-muted">
             Instant answers to everyday decisions.
           </p>
@@ -93,7 +93,7 @@ export function SiteFooter() {
 
       <div className="mx-auto mt-8 max-w-6xl px-4 sm:px-6">
         <p className="text-xs text-muted">
-          © {new Date().getFullYear()} QUANTIVA. Results are estimates for informational
+          © {new Date().getFullYear()} calkulater. Results are estimates for informational
           purposes only — not financial advice.
         </p>
       </div>

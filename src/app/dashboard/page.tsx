@@ -6,7 +6,7 @@ import { buildMetadata } from "@/lib/seo";
 export const metadata: Metadata = {
   ...buildMetadata({
     title: "Dashboard",
-    description: "Your QUANTIVA history, scenarios and budgets.",
+    description: "Your calkulater history, scenarios and budgets.",
     path: "/dashboard",
   }),
   // Personal page backed by local device storage — not a search destination.

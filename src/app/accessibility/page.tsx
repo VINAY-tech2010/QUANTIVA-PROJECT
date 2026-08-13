@@ -5,7 +5,7 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
   title: "Accessibility",
-  description: "QUANTIVA's commitment to accessibility.",
+  description: "calkulater's commitment to accessibility.",
   path: "/accessibility",
 });
 
@@ -13,7 +13,7 @@ export default function AccessibilityPage() {
   return (
     <LegalPage title="Accessibility" updated="August 11, 2026">
       <p>
-        QUANTIVA is built to be usable by as many people as possible, including people who
+        calkulater is built to be usable by as many people as possible, including people who
         use keyboards, screen readers, or other assistive technologies.
       </p>
 

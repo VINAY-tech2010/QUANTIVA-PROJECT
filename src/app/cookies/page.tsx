@@ -5,7 +5,7 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
   title: "Cookie Policy",
-  description: "How QUANTIVA uses cookies and similar technologies.",
+  description: "How calkulater uses cookies and similar technologies.",
   path: "/cookies",
 });
 
@@ -13,13 +13,13 @@ export default function CookiesPage() {
   return (
     <LegalPage title="Cookie Policy" updated="August 11, 2026">
       <p>
-        This policy explains how QUANTIVA uses cookies and similar technologies. It should
+        This policy explains how calkulater uses cookies and similar technologies. It should
         be read together with our <Link href="/privacy">Privacy Policy</Link>.
       </p>
 
       <h2>What we use</h2>
       <p>
-        QUANTIVA itself primarily uses your browser&rsquo;s <strong>local storage</strong> (not
+        calkulater itself primarily uses your browser&rsquo;s <strong>local storage</strong> (not
         cookies) to remember your preferences, history, saved calculations, and scenarios.
         This data stays on your device.
       </p>

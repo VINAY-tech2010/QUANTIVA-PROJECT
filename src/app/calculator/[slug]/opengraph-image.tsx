@@ -3,7 +3,7 @@ import { getCalculator } from "@/data/calculators";
 import { SITE } from "@/lib/seo";
 
 export const runtime = "nodejs";
-export const alt = "QUANTIVA calculator";
+export const alt = "calkulater calculator";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

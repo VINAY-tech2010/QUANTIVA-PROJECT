@@ -4,16 +4,16 @@ import { LegalPage } from "@/components/layout/LegalPage";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
-  title: "About QUANTIVA",
-  description: "What QUANTIVA is and why it exists.",
+  title: "About calkulater",
+  description: "What calkulater is and why it exists.",
   path: "/about",
 });
 
 export default function AboutPage() {
   return (
-    <LegalPage title="About QUANTIVA">
+    <LegalPage title="About calkulater">
       <p>
-        QUANTIVA gives you instant answers to everyday decisions. It brings together a
+        calkulater gives you instant answers to everyday decisions. It brings together a
         collection of fast, focused calculators for money, buying, time, health, science,
         and more — so you can get a clear number without digging through spreadsheets or
         dense articles.
@@ -26,7 +26,7 @@ export default function AboutPage() {
       </ul>
       <h2>Your data</h2>
       <p>
-        Most QUANTIVA tools run entirely in your browser. History, saved calculations,
+        Most calkulater tools run entirely in your browser. History, saved calculations,
         scenarios, and preferences are stored locally on your device — not on our servers.
         See our <Link href="/privacy">Privacy Policy</Link> for details.
       </p>

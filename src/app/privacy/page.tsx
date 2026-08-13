@@ -5,7 +5,7 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
   title: "Privacy Policy",
-  description: "How QUANTIVA handles your data.",
+  description: "How calkulater handles your data.",
   path: "/privacy",
 });
 
@@ -13,14 +13,14 @@ export default function PrivacyPage() {
   return (
     <LegalPage title="Privacy Policy" updated="August 11, 2026">
       <p>
-        This Privacy Policy explains what information QUANTIVA collects, how it is used,
-        and the choices you have. The short version: most of QUANTIVA runs in your
+        This Privacy Policy explains what information calkulater collects, how it is used,
+        and the choices you have. The short version: most of calkulater runs in your
         browser, and we collect as little as possible.
       </p>
 
       <h2>Information stored on your device</h2>
       <p>
-        QUANTIVA stores the following in your browser&rsquo;s local storage, on your device
+        calkulater stores the following in your browser&rsquo;s local storage, on your device
         only. This data is not transmitted to our servers:
       </p>
       <ul>
@@ -34,14 +34,14 @@ export default function PrivacyPage() {
       <p>
         If you submit the feedback or contact form, we receive the contents of that
         submission (category, message, and optionally your name, email, and subject) so we
-        can read and respond to it. We use this only to operate and improve QUANTIVA. We
+        can read and respond to it. We use this only to operate and improve calkulater. We
         do not sell your information or add you to marketing lists without your explicit
         consent.
       </p>
 
       <h2>Advertising</h2>
       <p>
-        QUANTIVA may display advertising provided by third-party networks such as Google
+        calkulater may display advertising provided by third-party networks such as Google
         AdSense. When ads are enabled, these networks may use cookies or similar
         technologies to serve and measure ads, including personalized ads where permitted.
         You can control personalized advertising through your ad provider&rsquo;s settings and

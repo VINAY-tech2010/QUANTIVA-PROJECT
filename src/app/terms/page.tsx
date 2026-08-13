@@ -5,7 +5,7 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
   title: "Terms of Use",
-  description: "The terms that govern your use of QUANTIVA.",
+  description: "The terms that govern your use of calkulater.",
   path: "/terms",
 });
 
@@ -13,19 +13,19 @@ export default function TermsPage() {
   return (
     <LegalPage title="Terms of Use" updated="August 11, 2026">
       <p>
-        By using QUANTIVA, you agree to these terms. If you do not agree, please do not
+        By using calkulater, you agree to these terms. If you do not agree, please do not
         use the site.
       </p>
 
       <h2>The service</h2>
       <p>
-        QUANTIVA provides online calculators and related tools for informational purposes.
+        calkulater provides online calculators and related tools for informational purposes.
         Results are estimates and may not reflect your exact situation.
       </p>
 
       <h2>Not professional advice</h2>
       <p>
-        QUANTIVA does not provide financial, legal, tax, medical, or other professional
+        calkulater does not provide financial, legal, tax, medical, or other professional
         advice. Always consult a qualified professional before making decisions based on
         the results. See our <Link href="/disclaimer">Disclaimer</Link>.
       </p>
@@ -40,14 +40,14 @@ export default function TermsPage() {
 
       <h2>Intellectual property</h2>
       <p>
-        The QUANTIVA name, design, and content are owned by the project. You may use the
+        The calkulater name, design, and content are owned by the project. You may use the
         tools for their intended purpose; you may not copy or redistribute the site as a
         whole without permission.
       </p>
 
       <h2>Limitation of liability</h2>
       <p>
-        QUANTIVA is provided &ldquo;as is&rdquo; without warranties of any kind. To the fullest extent
+        calkulater is provided &ldquo;as is&rdquo; without warranties of any kind. To the fullest extent
         permitted by law, we are not liable for any damages arising from your use of the
         site or reliance on its results.
       </p>

@@ -1,6 +1,6 @@
 /**
  * Lightweight natural-language tokenizer and entity extractor for the
- * QUANTIVA intent engine. No external NLP dependency — deterministic and
+ * calkulater intent engine. No external NLP dependency — deterministic and
  * testable.
  *
  * Extended to understand: Indian number formats (lakh/crore), millions,

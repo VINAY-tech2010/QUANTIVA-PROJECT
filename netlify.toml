@@ -1,4 +1,4 @@
-# Netlify configuration for QUANTIVA (Next.js 16 App Router)
+# Netlify configuration for calkulater (Next.js 16 App Router)
 # Docs: https://docs.netlify.com/integrations/frameworks/next-js/
 
 [build]

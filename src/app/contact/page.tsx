@@ -5,7 +5,7 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
   title: "Contact",
-  description: "How to get in touch with the QUANTIVA team.",
+  description: "How to get in touch with the calkulater team.",
   path: "/contact",
 });
 
@@ -13,7 +13,7 @@ export default function ContactPage() {
   return (
     <LegalPage title="Contact us">
       <p>
-        The fastest way to reach us is through the QUANTIVA feedback form. It handles
+        The fastest way to reach us is through the calkulater feedback form. It handles
         questions, feature requests, bug reports, complaints, and general messages, and
         routes them straight to the team.
       </p>

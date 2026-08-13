@@ -2,7 +2,7 @@
 import "server-only";
 
 /**
- * Server-side email delivery for QUANTIVA feedback/contact/complaints.
+ * Server-side email delivery for calkulater feedback/contact/complaints.
  *
  * This module must only be imported from server code (route handlers / server
  * components). It reads private configuration from environment variables.
@@ -73,13 +73,13 @@ function buildSubject(input: FeedbackEmailInput): string {
   const label = CATEGORY_LABELS[input.category] ?? input.category;
   const base = input.subject ? `${label}: ${input.subject}` : label;
   // Subject must be single-line to prevent header injection.
-  return `[QUANTIVA] ${base}`.replace(/[\r\n]+/g, " ").slice(0, 200);
+  return `[calkulater] ${base}`.replace(/[\r\n]+/g, " ").slice(0, 200);
 }
 
 function buildText(input: FeedbackEmailInput): string {
   const label = CATEGORY_LABELS[input.category] ?? input.category;
   const lines = [
-    "QUANTIVA — New Feedback",
+    "calkulater — New Feedback",
     "",
     `Type: ${label}`,
     input.subject ? `Subject: ${input.subject}` : null,
@@ -108,7 +108,7 @@ function buildHtml(input: FeedbackEmailInput): string {
   });
   return `<!doctype html>
 <html><body style="font-family:system-ui,Arial,sans-serif;color:#111;line-height:1.5;">
-  <h2 style="margin:0 0 12px;">QUANTIVA — New Feedback</h2>
+  <h2 style="margin:0 0 12px;">calkulater — New Feedback</h2>
   <table style="border-collapse:collapse;margin-bottom:16px;">
     ${row("Type", label)}
     ${row("Subject", input.subject)}
@@ -187,7 +187,7 @@ async function sendViaResend(message: EmailMessage): Promise<void> {
   const from =
     message.from && message.from.trim().length > 0
       ? message.from
-      : "QUANTIVA <onboarding@resend.dev>";
+      : "calkulater <onboarding@resend.dev>";
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {

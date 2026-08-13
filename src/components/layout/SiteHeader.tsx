@@ -31,8 +31,8 @@ export function SiteHeader() {
               )}
             </svg>
           </button>
-          <Link href="/" className="flex items-center gap-2" aria-label="QUANTIVA home">
-            <span className="text-lg font-bold tracking-tight text-gradient">QUANTIVA</span>
+          <Link href="/" className="flex items-center gap-2" aria-label="calkulater home">
+            <span className="text-lg font-bold tracking-tight text-gradient">calkulater</span>
           </Link>
         </div>
 

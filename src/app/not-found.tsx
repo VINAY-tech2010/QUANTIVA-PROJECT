@@ -19,7 +19,7 @@ export default function NotFound() {
           This page doesn&apos;t exist
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-muted">
-          The address may be wrong, or the tool may have moved. Search QUANTIVA for the
+          The address may be wrong, or the tool may have moved. Search calkulater for the
           calculator you need instead.
         </p>
       </div>

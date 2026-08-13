@@ -36,7 +36,7 @@ declare global {
  * - When not configured, renders a clearly-labelled, space-reserving
  *   placeholder with no network calls and no fake advertisement content.
  * - If an ad fails to fill, the container simply remains an empty reserved
- *   box — QUANTIVA continues working normally and no error is shown to users.
+ *   box — calkulater continues working normally and no error is shown to users.
  *
  * Space is reserved up-front (minHeight) to avoid layout shift (CLS) when an
  * ad loads. The rail variant is desktop-only.

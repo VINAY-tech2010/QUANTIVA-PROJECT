@@ -27,11 +27,11 @@ describe("feedback email content", () => {
       subject: "Broken\nBcc: attacker@example.com",
     });
     expect(subject).not.toMatch(/[\r\n]/);
-    expect(subject.startsWith("[QUANTIVA] Bug report: ")).toBe(true);
+    expect(subject.startsWith("[calkulater] Bug report: ")).toBe(true);
   });
 
   it("uses the category label when no subject is provided", () => {
-    expect(__test__.buildSubject(base)).toBe("[QUANTIVA] Bug report");
+    expect(__test__.buildSubject(base)).toBe("[calkulater] Bug report");
   });
 
   it("includes the message in both text and HTML bodies", () => {

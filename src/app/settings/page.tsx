@@ -43,7 +43,7 @@ export default function SettingsPage() {
       {/* Appearance */}
       <section className="card mt-8 p-6">
         <h2 className="text-lg font-semibold text-foreground">Appearance</h2>
-        <p className="mt-1 text-sm text-muted">Choose how QUANTIVA looks.</p>
+        <p className="mt-1 text-sm text-muted">Choose how calkulater looks.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {THEME_OPTIONS.map((opt) => (
             <button

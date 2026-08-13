@@ -4,7 +4,7 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
   title: "Disclaimer",
-  description: "Important limitations on QUANTIVA results.",
+  description: "Important limitations on calkulater results.",
   path: "/disclaimer",
 });
 
@@ -12,7 +12,7 @@ export default function DisclaimerPage() {
   return (
     <LegalPage title="Disclaimer" updated="August 11, 2026">
       <p>
-        QUANTIVA provides calculators and tools for general informational and educational
+        calkulater provides calculators and tools for general informational and educational
         purposes only. Please read this carefully before relying on any result.
       </p>
 
@@ -32,7 +32,7 @@ export default function DisclaimerPage() {
 
       <h2>Your responsibility</h2>
       <p>
-        Any decision you make based on QUANTIVA results is your own. For significant
+        Any decision you make based on calkulater results is your own. For significant
         financial, legal, health, or other decisions, consult a qualified professional who
         can consider your specific situation.
       </p>

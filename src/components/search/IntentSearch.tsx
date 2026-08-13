@@ -234,7 +234,7 @@ export function IntentSearch() {
         <div className="panel-glass mt-3 p-4" role="status">
           <p className="text-sm font-semibold text-foreground">Tool not available yet</p>
           <p className="mt-1 text-sm text-muted">
-            Sorry, this tool isn&apos;t implemented in QUANTIVA yet. You can request it and it may
+            Sorry, this tool isn&apos;t implemented in calkulater yet. You can request it and it may
             be considered for a future update.
           </p>
           <button

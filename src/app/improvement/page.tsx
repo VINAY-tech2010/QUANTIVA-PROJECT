@@ -20,7 +20,7 @@ const SUCCESS_MESSAGE: Record<string, string> = {
   complaint:
     "Your complaint has been submitted successfully. We appreciate you taking the time to report the issue.",
   "tool-request":
-    "Thanks for the suggestion. Your tool request has been sent successfully and may be considered for a future QUANTIVA update.",
+    "Thanks for the suggestion. Your tool request has been sent successfully and may be considered for a future calkulater update.",
   default: "Thank you. Your feedback has been submitted successfully.",
 };
 
@@ -107,7 +107,7 @@ function ImprovementForm() {
       </h1>
       <p className="mt-2 text-muted">
         {isToolRequest
-          ? "What tool would you like to see in QUANTIVA?"
+          ? "What tool would you like to see in calkulater?"
           : "Suggest improvements, request features, report bugs, make a complaint, or send a general message. We read every submission."}
       </p>
 

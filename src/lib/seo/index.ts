@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 
 /** Canonical site configuration used across metadata, sitemap and JSON-LD. */
 export const SITE = {
-  name: "QUANTIVA",
+  name: "calkulater",
   tagline: "Instant answers to everyday decisions",
   description:
-    "QUANTIVA is a premium decision and calculation utility. Instant answers to everyday money, buying, time and productivity questions.",
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://quantiva.app",
+    "calkulater is a premium decision and calculation utility. Instant answers to everyday money, buying, time and productivity questions.",
+  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://calkulater.app",
 } as const;
 
 interface PageMetaInput {
@@ -86,7 +86,7 @@ export function webAppJsonLd() {
 
 /**
  * JSON-LD WebSite + potentialAction SearchAction. Enables the Google
- * "sitelinks search box" so users can search QUANTIVA directly from the
+ * "sitelinks search box" so users can search calkulater directly from the
  * search results page.
  */
 export function websiteJsonLd() {

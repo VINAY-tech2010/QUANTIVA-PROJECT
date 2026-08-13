@@ -53,7 +53,7 @@ describe("IntentSearch", () => {
     typeAndSubmit("Bitcoin Mining Profitability Calculator");
     expect(push).not.toHaveBeenCalled();
     expect(screen.getByText(/Tool not available yet/i)).toBeInTheDocument();
-    expect(screen.getByText(/isn't implemented in QUANTIVA yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/isn't implemented in calkulater yet/i)).toBeInTheDocument();
   });
 
   it("navigates to the improvement page with the tool prefilled when requesting", () => {

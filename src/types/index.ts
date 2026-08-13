@@ -1,5 +1,5 @@
 /**
- * Core shared types for QUANTIVA.
+ * Core shared types for calkulater.
  *
  * These types are the single source of truth for the calculator engine,
  * currency system, intent parser, storage, scenarios, and dashboard.

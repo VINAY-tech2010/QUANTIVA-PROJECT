@@ -1,10 +1,10 @@
 /**
- * Smart tool discovery for QUANTIVA search.
+ * Smart tool discovery for calkulater search.
  *
  * Distinguishes three kinds of query:
  *   1. A natural-language calculation (handled by the intent parser).
  *   2. A search for an existing calculator/tool (this module).
- *   3. A request for a tool QUANTIVA does not implement (this module).
+ *   3. A request for a tool calkulater does not implement (this module).
  *
  * This module is additive: it does NOT replace the intent parser. It only
  * runs when the parser did not already produce a confident calculation
