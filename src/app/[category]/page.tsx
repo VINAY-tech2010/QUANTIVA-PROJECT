@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { CATEGORIES, getCategory, isCategorySlug } from "@/data/categories";
 import { calculatorsByCategory } from "@/data/calculators";
 import { CategoryAd, FooterAd } from "@/components/ads/placements";
-import { buildMetadata } from "@/lib/seo";
+import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 
 export function generateStaticParams() {
   return CATEGORIES.map((c) => ({ category: c.slug }));
@@ -37,6 +37,23 @@ export default async function CategoryPage({
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            breadcrumbJsonLd([
+              { name: "Home", path: "/" },
+              { name: cat.name, path: `/${cat.slug}` },
+            ]),
+          ),
+        }}
+      />
+      <nav className="mb-6 text-sm text-muted" aria-label="Breadcrumb">
+        <Link href="/" className="hover:text-foreground">Home</Link>
+        <span className="mx-2">/</span>
+        <span className="text-foreground">{cat.name}</span>
+      </nav>
+
       <header className="mb-10">
         <p className="text-sm font-medium uppercase tracking-wider text-violet-soft">
           {cat.name}

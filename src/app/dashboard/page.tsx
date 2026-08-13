@@ -3,11 +3,15 @@ import { DashboardClient } from "./DashboardClient";
 import { BetweenContentAd } from "@/components/ads/placements";
 import { buildMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = buildMetadata({
-  title: "Dashboard",
-  description: "Your QUANTIVA history, scenarios and budgets.",
-  path: "/dashboard",
-});
+export const metadata: Metadata = {
+  ...buildMetadata({
+    title: "Dashboard",
+    description: "Your QUANTIVA history, scenarios and budgets.",
+    path: "/dashboard",
+  }),
+  // Personal page backed by local device storage — not a search destination.
+  robots: { index: false },
+};
 
 export default function DashboardPage() {
   return (

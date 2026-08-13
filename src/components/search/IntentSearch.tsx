@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, type FormEvent } from "react";
 import { parseIntent } from "@/lib/intent/parser";
 import { matchTool, looksLikeToolRequest } from "@/lib/intent/tool-match";
 import { getCalculator } from "@/data/calculators";
@@ -44,8 +44,17 @@ function LiveCountdownValue({ targetIso }: { targetIso: string }) {
 
 export function IntentSearch() {
   const router = useRouter();
-  const [query, setQuery] = useState("");
+  const searchParams = useSearchParams();
+  // Deep link support for the sitelinks search box (?q=...): prefill the box
+  // from the URL on first render, then auto-run the search once on mount.
+  const initialQuery = searchParams.get("q") ?? "";
+  const [query, setQuery] = useState(initialQuery);
   const [panel, setPanel] = useState<PanelState>({ kind: "idle" });
+
+  useEffect(() => {
+    if (initialQuery) runSearch(initialQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function goToCalculator(toolId: string, params: Record<string, number | string>) {
     router.push(calculatorUrl(toolId, params));
@@ -56,8 +65,8 @@ export function IntentSearch() {
     router.push(`/improvement?${sp.toString()}`);
   }
 
-  function runSearch() {
-    const trimmed = query.trim();
+  function runSearch(raw?: string) {
+    const trimmed = (raw ?? query).trim();
     if (!trimmed) return;
 
     // 1. Calculation intent (existing natural-language engine). A confident

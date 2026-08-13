@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node -e \"const fs=require('fs');for(const p of ['.next/cache/turbopack','.netlify/.next/cache/turbopack','.netlify/.next/cache/fetch-cache','.next/cache/fetch-cache'])fs.rmSync(p,{recursive:true,force:true})\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -13,7 +14,8 @@
   "dependencies": {
     "next": "16.3.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

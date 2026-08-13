@@ -7,7 +7,6 @@ export const metadata: Metadata = buildMetadata({
   description:
     "A live countdown to any date and time. Updates every second, stays accurate when you switch tabs, and shows how long ago past dates were.",
   path: "/countdown-timer",
-  keywords: ["countdown", "timer", "live countdown", "days until", "time remaining"],
 });
 
 export default function CountdownTimerPage() {

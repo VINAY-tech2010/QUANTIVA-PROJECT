@@ -1,12 +1,22 @@
 import { ImageResponse } from "next/og";
+import { getCalculator } from "@/data/calculators";
 import { SITE } from "@/lib/seo";
 
 export const runtime = "nodejs";
-export const alt = `${SITE.name} — ${SITE.tagline}`;
+export const alt = "QUANTIVA calculator";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default function OpengraphImage() {
+export default async function CalculatorOpengraphImage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const calc = getCalculator(slug);
+  const name = calc?.name ?? "Calculator";
+  const question = calc?.question ?? SITE.tagline;
+
   return new ImageResponse(
     (
       <div
@@ -38,19 +48,19 @@ export default function OpengraphImage() {
         <div
           style={{
             marginTop: 24,
-            fontSize: 76,
+            fontSize: 68,
             fontWeight: 800,
-            lineHeight: 1.05,
+            lineHeight: 1.08,
             maxWidth: 900,
             background: "linear-gradient(90deg,#ddd6fe,#a78bfa 55%,#7c3aed)",
             backgroundClip: "text",
             color: "transparent",
           }}
         >
-          Instant answers to everyday decisions
+          {name}
         </div>
-        <div style={{ marginTop: 28, fontSize: 30, color: "#a1a1b5" }}>
-          65 precise calculators for money, time, health &amp; more
+        <div style={{ marginTop: 24, fontSize: 30, color: "#a1a1b5", maxWidth: 860 }}>
+          {question}
         </div>
       </div>
     ),

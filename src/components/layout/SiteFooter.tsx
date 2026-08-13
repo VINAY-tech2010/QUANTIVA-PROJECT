@@ -67,6 +67,15 @@ export function SiteFooter() {
               </li>
             ))}
           </ul>
+          <ul className="mt-3 flex flex-col gap-1.5">
+            {LEGAL_LINKS.map((l) => (
+              <li key={l.href}>
+                <Link href={l.href} className="text-sm text-muted hover:text-foreground">
+                  {l.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </nav>
 
         <div aria-label="FAQ">

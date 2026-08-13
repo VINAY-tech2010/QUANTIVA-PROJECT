@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage } from "@/components/layout/LegalPage";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Cookie Policy",
   description: "How QUANTIVA uses cookies and similar technologies.",
-};
+  path: "/cookies",
+});
 
 export default function CookiesPage() {
   return (

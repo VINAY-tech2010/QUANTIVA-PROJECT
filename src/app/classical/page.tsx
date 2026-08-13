@@ -7,7 +7,6 @@ export const metadata: Metadata = buildMetadata({
   description:
     "A fast, touch-friendly classical calculator with keyboard support. Add, subtract, multiply, divide, and percentages — no sign-in required.",
   path: "/classical",
-  keywords: ["calculator", "classical calculator", "arithmetic", "basic calculator"],
 });
 
 export default function ClassicalPage() {

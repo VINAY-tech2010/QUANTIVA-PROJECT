@@ -1,4 +1,11 @@
-import { describe, it, expect } from "vitest";
+// @vitest-environment node
+import { describe, it, expect, vi } from "vitest";
+
+// server-only is a build-time marker (resolved to empty.js under the
+// "react-server" condition). Vitest resolves the throwing client entry, so
+// stub it here; production builds enforce the boundary via Turbopack conditions.
+vi.mock("server-only", () => ({}));
+
 import { __test__, type FeedbackEmailInput } from "./send";
 
 const base: FeedbackEmailInput = {

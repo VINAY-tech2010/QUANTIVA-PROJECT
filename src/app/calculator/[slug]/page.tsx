@@ -5,7 +5,7 @@ import { getCalculator, listCalculators } from "@/data/calculators";
 import { getCategory } from "@/data/categories";
 import { CalculatorForm } from "@/components/calculator/CalculatorForm";
 import { SidebarAd, BetweenContentAd, CalculatorBottomAd } from "@/components/ads/placements";
-import { buildMetadata, breadcrumbJsonLd, calculatorJsonLd, faqJsonLd } from "@/lib/seo";
+import { buildMetadata, breadcrumbJsonLd, calculatorJsonLd, seoTitle } from "@/lib/seo";
 
 export function generateStaticParams() {
   return listCalculators().map((c) => ({ slug: c.slug }));
@@ -20,10 +20,10 @@ export async function generateMetadata({
   const calc = getCalculator(slug);
   if (!calc) return {};
   return buildMetadata({
-    title: calc.name,
+    title: seoTitle(calc.name, calc.supporting),
     description: calc.description,
     path: `/calculator/${calc.slug}`,
-    keywords: calc.keywords,
+    ogImagePath: `/calculator/${calc.slug}/opengraph-image`,
   });
 }
 
@@ -121,9 +121,47 @@ export default async function CalculatorPage({
         <BetweenContentAd />
       </div>
 
-      <section className="mt-12">
+      <section className="mt-12 max-w-3xl">
         <h2 className="text-lg font-semibold">How it works</h2>
-        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted">{calc.methodology}</p>
+        <p className="mt-2 text-sm leading-relaxed text-muted">{calc.methodology}</p>
+        {calc.explanation && (
+          <div className="mt-6 flex flex-col gap-6">
+            <div>
+              <h3 className="font-medium">Formula</h3>
+              <p className="mt-1 rounded-lg border border-border bg-surface px-3 py-2 font-mono text-xs text-violet-soft">
+                {calc.explanation.formula}
+              </p>
+            </div>
+            {calc.explanation.steps.length > 0 && (
+              <div>
+                <h3 className="font-medium">Steps</h3>
+                <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted">
+                  {calc.explanation.steps.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ol>
+              </div>
+            )}
+            {calc.explanation.interpretation && (
+              <div>
+                <h3 className="font-medium">What the result means</h3>
+                <p className="mt-1 text-sm leading-relaxed text-muted">
+                  {calc.explanation.interpretation}
+                </p>
+              </div>
+            )}
+            {calc.explanation.assumptions.length > 0 && (
+              <div>
+                <h3 className="font-medium">Assumptions</h3>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
+                  {calc.explanation.assumptions.map((a, i) => (
+                    <li key={i}>{a}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {related.length > 0 && (

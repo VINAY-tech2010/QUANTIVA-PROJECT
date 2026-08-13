@@ -7,7 +7,6 @@ export const metadata: Metadata = buildMetadata({
   description:
     "Live current time across major world time zones. Updates every second.",
   path: "/world-clock",
-  keywords: ["world clock", "time zones", "current time", "utc", "international time"],
 });
 
 export default function WorldClockPage() {

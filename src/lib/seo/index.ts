@@ -14,17 +14,24 @@ interface PageMetaInput {
   description: string;
   /** Path beginning with "/", used for canonical + OG URL. */
   path: string;
-  keywords?: string[];
+  /**
+   * Optional path (beginning with "/") to a page-specific Open Graph image.
+   * Defaults to the site-wide "/opengraph-image".
+   */
+  ogImagePath?: string;
 }
 
-/** Build consistent Metadata with canonical, OpenGraph and Twitter cards. */
-export function buildMetadata({ title, description, path, keywords }: PageMetaInput): Metadata {
+/**
+ * Build consistent Metadata with canonical, OpenGraph and Twitter cards.
+ * Never emits a `keywords` meta tag — page terminology should come from real
+ * content, not metadata lists.
+ */
+export function buildMetadata({ title, description, path, ogImagePath }: PageMetaInput): Metadata {
   const url = `${SITE.url}${path}`;
-  const ogImage = `${SITE.url}/opengraph-image`;
+  const ogImage = `${SITE.url}${ogImagePath ?? "/opengraph-image"}`;
   return {
     title,
     description,
-    keywords,
     alternates: { canonical: url },
     openGraph: {
       title,
@@ -32,7 +39,7 @@ export function buildMetadata({ title, description, path, keywords }: PageMetaIn
       url,
       siteName: SITE.name,
       type: "website",
-      images: [{ url: ogImage, width: 1200, height: 630, alt: `${SITE.name} — ${SITE.tagline}` }],
+      images: [{ url: ogImage, width: 1200, height: 630, alt: `${SITE.name} — ${title}` }],
     },
     twitter: {
       card: "summary_large_image",
@@ -41,6 +48,26 @@ export function buildMetadata({ title, description, path, keywords }: PageMetaIn
       images: [ogImage],
     },
   };
+}
+
+/**
+ * Derive a unique, descriptive <title> for a calculator page from its name
+ * and one-line supporting text, e.g.
+ * "Loan Calculator – Monthly Payment, Total Repayment and Total Interest".
+ * Kept under a length cap so search results show the full title.
+ */
+export function seoTitle(name: string, supporting: string): string {
+  const LIMIT = 71;
+  const suffix = supporting.replace(/\.$/, "").trim();
+  if (!suffix) return name;
+  const joined = `${name} – ${suffix.charAt(0).toUpperCase()}${suffix.slice(1)}`;
+  if (joined.length <= LIMIT) return joined;
+  // Reserve 4 chars for " – " + "…", then cut on a word boundary: keep the
+  // last word when it ends exactly at the budget (e.g. "…total interest").
+  const budget = LIMIT - name.length - 4;
+  const isBoundary = budget >= suffix.length || /\s/.test(suffix.charAt(budget));
+  const cut = isBoundary ? budget : suffix.lastIndexOf(" ", budget);
+  return `${name} – ${suffix.slice(0, cut).trimEnd()}…`;
 }
 
 /** JSON-LD for the overall web application. */

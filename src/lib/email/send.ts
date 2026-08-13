@@ -1,3 +1,6 @@
+// Server-only boundary: importing this module from client code fails the build.
+import "server-only";
+
 /**
  * Server-side email delivery for QUANTIVA feedback/contact/complaints.
  *

@@ -1,5 +1,6 @@
 ﻿import Link from "next/link";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { CATEGORIES } from "@/data/categories";
 import { calculatorsByCategory } from "@/data/calculators";
 import { IntentSearch } from "@/components/search/IntentSearch";
@@ -10,7 +11,6 @@ export const metadata: Metadata = buildMetadata({
   title: `${SITE.name} — ${SITE.tagline}`,
   description: SITE.description,
   path: "/",
-  keywords: ["calculator", "decision", "money", "loan", "budget", "productivity", "time"],
 });
 
 export default function Home() {
@@ -27,7 +27,12 @@ export default function Home() {
           Ask in plain language — get a clear, structured answer.
         </p>
         <div className="mt-10 w-full max-w-2xl">
-          <IntentSearch />
+          {/* Suspense keeps the page statically prerendered while the search
+              box hydrates and reads the optional ?q= deep-link (used by the
+              sitelinks search box JSON-LD). */}
+          <Suspense fallback={<div className="search-glass h-14" aria-hidden="true" />}>
+            <IntentSearch />
+          </Suspense>
         </div>
       </section>
 

@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/layout/LegalPage";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Disclaimer",
   description: "Important limitations on QUANTIVA results.",
-};
+  path: "/disclaimer",
+});
 
 export default function DisclaimerPage() {
   return (

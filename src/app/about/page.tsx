@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage } from "@/components/layout/LegalPage";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "About",
+export const metadata: Metadata = buildMetadata({
+  title: "About QUANTIVA",
   description: "What QUANTIVA is and why it exists.",
-};
+  path: "/about",
+});
 
 export default function AboutPage() {
   return (

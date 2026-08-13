@@ -6,16 +6,22 @@ import { CATEGORIES } from "@/data/categories";
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
 
+  // Public, indexable static routes. Personal/utility pages (dashboard,
+  // history, scenarios, settings) are excluded — they are not useful search
+  // destinations.
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: SITE.url, lastModified: now, changeFrequency: "weekly", priority: 1 },
-    { url: `${SITE.url}/dashboard`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { url: `${SITE.url}/classical`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE.url}/countdown-timer`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE.url}/world-clock`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
-    { url: `${SITE.url}/improvement`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
-    { url: `${SITE.url}/settings`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
-    { url: `${SITE.url}/history`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
-    { url: `${SITE.url}/scenarios`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE.url}/improvement`, lastModified: now, changeFrequency: "monthly", priority: 0.3 },
+    { url: `${SITE.url}/about`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE.url}/contact`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE.url}/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
+    { url: `${SITE.url}/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
+    { url: `${SITE.url}/disclaimer`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
+    { url: `${SITE.url}/cookies`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
+    { url: `${SITE.url}/accessibility`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
   ];
 
   const categoryRoutes: MetadataRoute.Sitemap = CATEGORIES.map((c) => ({
