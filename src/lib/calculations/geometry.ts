@@ -1,5 +1,6 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
 import { roundTo, toNumber } from "@/lib/utils/math";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 /** Geometry: area & perimeter/circumference for common shapes. */
 export function calculateGeometry(inputs: CalculatorInputs): CalcResult {
@@ -102,7 +103,11 @@ export function calculatePythagorean(inputs: CalculatorInputs): CalcResult {
 
   if (solve === "c") {
     if (a <= 0 || b <= 0) return { ok: false, error: "Both legs must be greater than zero.", metrics: [] };
-    const c = roundTo(Math.sqrt(a * a + b * b), 6);
+    const raw = a * a + b * b;
+    if (!Number.isFinite(raw)) {
+      return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+    }
+    const c = roundTo(Math.sqrt(raw), 6);
     return {
       ok: true,
       metrics: [{ key: "c", label: "Hypotenuse (c)", kind: "number", value: c, primary: true }],
@@ -116,7 +121,12 @@ export function calculatePythagorean(inputs: CalculatorInputs): CalcResult {
   const leg = toNumber(inputs.b);
   if (c <= 0 || leg <= 0) return { ok: false, error: "Sides must be greater than zero.", metrics: [] };
   if (leg >= c) return { ok: false, error: "The hypotenuse must be the longest side.", metrics: [] };
-  const missing = roundTo(Math.sqrt(c * c - leg * leg), 6);
+  // (c − leg)(c + leg) avoids the Infinity − Infinity path of c² − leg².
+  const raw = (c - leg) * (c + leg);
+  if (!Number.isFinite(raw)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const missing = roundTo(Math.sqrt(raw), 6);
   return {
     ok: true,
     metrics: [{ key: "a", label: "Missing leg (a)", kind: "number", value: missing, primary: true }],

@@ -39,6 +39,7 @@ export function calculateDebtPayoff(inputs: CalculatorInputs): CalcResult {
 
   const metrics: CalcResult["metrics"] = [
     { key: "months", label: "Time to pay off", kind: "number", value: months, primary: true },
+    { key: "monthlyPayment", label: "Monthly payment", kind: "currency", value: payment },
     { key: "totalInterest", label: "Total interest", kind: "currency", value: totalInterest },
     { key: "totalPaid", label: "Total paid", kind: "currency", value: totalPaid },
   ];
@@ -74,6 +75,13 @@ export function calculateDebtPayoff(inputs: CalculatorInputs): CalcResult {
         label: "Months saved with extra",
         kind: "number",
         value: monthsSaved,
+        tone: "positive",
+      });
+      metrics.push({
+        key: "extraPayment",
+        label: "Extra monthly payment",
+        kind: "currency",
+        value: extra,
         tone: "positive",
       });
       data.interestSaved = interestSaved;

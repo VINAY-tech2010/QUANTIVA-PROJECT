@@ -1,5 +1,6 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
 import { roundTo } from "@/lib/utils/math";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 /** Parse a textarea/list of numbers separated by commas, spaces, or newlines. */
 export function parseNumberList(raw: unknown): number[] {
@@ -23,6 +24,9 @@ export function calculateStatistics(inputs: CalculatorInputs): CalcResult {
   const sorted = [...values].sort((a, b) => a - b);
   const count = sorted.length;
   const sum = sorted.reduce((acc, v) => acc + v, 0);
+  if (!Number.isFinite(sum)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
   const mean = sum / count;
   const min = sorted[0];
   const max = sorted[count - 1];
@@ -79,6 +83,9 @@ export function calculateStdDev(inputs: CalculatorInputs): CalcResult {
   const count = values.length;
   const mean = values.reduce((a, v) => a + v, 0) / count;
   const squaredDiffs = values.reduce((a, v) => a + (v - mean) ** 2, 0);
+  if (!Number.isFinite(mean) || !Number.isFinite(squaredDiffs)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
   const divisor = type === "sample" ? count - 1 : count;
   const variance = squaredDiffs / divisor;
   const stdDev = Math.sqrt(variance);
@@ -103,6 +110,9 @@ export function calculateAverage(inputs: CalculatorInputs): CalcResult {
     return { ok: false, error: "Enter at least one number (separate with commas or spaces).", metrics: [] };
   }
   const sum = values.reduce((a, v) => a + v, 0);
+  if (!Number.isFinite(sum)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
   const mean = sum / values.length;
   return {
     ok: true,

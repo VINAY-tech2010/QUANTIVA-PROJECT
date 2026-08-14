@@ -1,5 +1,6 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
 import { roundMoney, toNumber } from "@/lib/utils/math";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 /** Tip — tip amount, total bill, and optional split between people. */
 export function calculateTip(inputs: CalculatorInputs): CalcResult {
@@ -14,13 +15,18 @@ export function calculateTip(inputs: CalculatorInputs): CalcResult {
     return { ok: false, error: "Tip percentage cannot be negative.", metrics: [] };
   }
 
-  const tipAmount = roundMoney((bill * tipPercent) / 100);
+  const rawTip = (bill * tipPercent) / 100;
+  if (!Number.isFinite(rawTip)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const tipAmount = roundMoney(rawTip);
   const total = roundMoney(bill + tipAmount);
   const perPerson = roundMoney(total / people);
 
   const metrics: CalcResult["metrics"] = [
     { key: "total", label: "Total with tip", kind: "currency", value: total, primary: true },
     { key: "tipAmount", label: "Tip amount", kind: "currency", value: tipAmount },
+    { key: "tipPercent", label: "Tip percentage", kind: "percent", value: tipPercent },
   ];
   if (people > 1) {
     metrics.push({ key: "perPerson", label: "Per person", kind: "currency", value: perPerson });

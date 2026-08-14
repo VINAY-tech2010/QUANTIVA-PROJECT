@@ -23,6 +23,10 @@ interface RateEntry {
 
 // In-memory rate limiter. Suitable for a single-instance deployment; for
 // multi-instance/serverless, back this with a shared store (e.g. Redis).
+// Note: on Cloudflare Workers the limit is per-isolate, not global — an
+// attacker rotating through many distinct clients could still saturate the
+// email provider. The Cloudflare account-level rate limiting / WAF rules are
+// the correct enforcement layer for global limits.
 const rateLimit = new Map<string, RateEntry>();
 
 function clientKey(request: Request): string {
@@ -125,6 +129,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof EmailNotConfiguredError) {
+      // Server-side only: tells operators which variable is missing (e.g. the
+      // EMAIL_PROVIDER_API_KEY secret was not set on the Cloudflare worker).
+      console.error("[feedback] email not configured:", err.message);
       return NextResponse.json(
         { error: "Feedback is currently unavailable. Please try again later." },
         { status: 503 },

@@ -34,6 +34,14 @@ export function calculateDateAdd(inputs: CalculatorInputs): CalcResult {
   result.setMonth(result.getMonth() + sign * months);
   result.setDate(result.getDate() + sign * (weeks * 7 + days));
 
+  if (Number.isNaN(result.getTime())) {
+    return {
+      ok: false,
+      error: "The resulting date is outside the supported range. Try smaller values.",
+      metrics: [],
+    };
+  }
+
   const iso = result.toISOString().slice(0, 10);
   const friendly = result.toLocaleDateString("en-US", {
     weekday: "long",
@@ -98,16 +106,20 @@ export function calculateWorkDays(inputs: CalculatorInputs): CalcResult {
   const from = start <= end ? start : end;
   const to = start <= end ? end : start;
 
-  let count = 0;
-  const cursor = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()));
-  const last = Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate());
-  while (cursor.getTime() <= last) {
-    const day = cursor.getUTCDay();
+  // Weekday count in O(1) instead of walking every day: whole weeks always
+  // contribute 5 working days; only the remainder needs day-by-day checks.
+  // (A day-by-day loop over a ~100M-day range would freeze the page.)
+  const fromMs = Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate());
+  const toMs = Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate());
+  const totalDays = Math.round((toMs - fromMs) / MS_PER_DAY) + 1;
+  const startDay = new Date(fromMs).getUTCDay();
+  const fullWeeks = Math.floor(totalDays / 7);
+  let count = fullWeeks * 5;
+  const remainder = totalDays % 7;
+  for (let i = 0; i < remainder; i++) {
+    const day = (startDay + i) % 7;
     if (day !== 0 && day !== 6) count += 1;
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
-
-  const totalDays = Math.round((last - Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate())) / MS_PER_DAY) + 1;
   const weekendDays = totalDays - count;
 
   return {

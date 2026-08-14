@@ -9,6 +9,11 @@
 export function roundTo(value: number, decimals = 2): number {
   if (!Number.isFinite(value)) return 0;
   const factor = 10 ** decimals;
+  const scaled = value * factor;
+  // Overflow guard: rounding a huge-but-finite value must never return
+  // Infinity (or collapse to 0). Return the raw value so callers can still
+  // detect the magnitude instead of silently corrupting the result.
+  if (!Number.isFinite(scaled)) return value;
   return Math.round((value + Number.EPSILON) * factor) / factor;
 }
 
@@ -37,6 +42,11 @@ export function toNumber(value: number | string | undefined, fallback = 0): numb
 /** True when the value is a finite, strictly positive number. */
 export function isPositive(value: number): boolean {
   return Number.isFinite(value) && value > 0;
+}
+
+/** True when every value is a finite number (rejects NaN/±Infinity/overflow). */
+export function allFinite(...values: number[]): boolean {
+  return values.every((v) => Number.isFinite(v));
 }
 
 /** True when the value is a finite, non-negative number. */
@@ -81,7 +91,11 @@ export function payoffMonths(
   return -Math.log(1 - (balance * r) / payment) / Math.log(1 + r);
 }
 
-/** Future value of a series: starting amount + periodic contributions. */
+/**
+ * Future value of a series: starting amount + periodic contributions.
+ * Returns NaN when the intermediate arithmetic overflows so callers can
+ * reject the input instead of showing a silently corrupt result.
+ */
 export function futureValue(
   principal: number,
   contribution: number,
@@ -97,7 +111,7 @@ export function futureValue(
   let value = principal;
   if (periodicRate === 0) {
     value = principal + contribution * contributionsPerYear * years;
-    return roundMoney(value);
+    return Number.isFinite(value) ? roundMoney(value) : NaN;
   }
 
   // Compound the principal.
@@ -114,7 +128,7 @@ export function futureValue(
           contributionPeriodicRate);
 
   value = grownPrincipal + grownContributions;
-  return roundMoney(value);
+  return Number.isFinite(value) ? roundMoney(value) : NaN;
 }
 
 /** Format a duration given in total minutes as "X hours Y minutes". */

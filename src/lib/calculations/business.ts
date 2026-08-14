@@ -1,5 +1,6 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
-import { roundMoney, roundTo, toNumber } from "@/lib/utils/math";
+import { allFinite, roundMoney, roundTo, toNumber } from "@/lib/utils/math";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 /**
  * Overtime pay: regular pay + overtime hours at a multiplier.
@@ -13,9 +14,15 @@ export function calculateOvertime(inputs: CalculatorInputs): CalcResult {
   if (hourlyRate <= 0) return { ok: false, error: "Hourly rate must be greater than zero.", metrics: [] };
   if (regularHours < 0 || overtimeHours < 0) return { ok: false, error: "Hours cannot be negative.", metrics: [] };
 
-  const regularPay = roundMoney(hourlyRate * regularHours);
-  const overtimeRate = roundMoney(hourlyRate * multiplier);
-  const overtimePay = roundMoney(overtimeRate * overtimeHours);
+  const rawRegular = hourlyRate * regularHours;
+  const rawOvertimeRate = hourlyRate * multiplier;
+  const rawOvertimePay = rawOvertimeRate * overtimeHours;
+  if (!allFinite(rawRegular, rawOvertimeRate, rawOvertimePay, rawRegular + rawOvertimePay)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const regularPay = roundMoney(rawRegular);
+  const overtimeRate = roundMoney(rawOvertimeRate);
+  const overtimePay = roundMoney(rawOvertimePay);
   const total = roundMoney(regularPay + overtimePay);
 
   return {
@@ -25,6 +32,7 @@ export function calculateOvertime(inputs: CalculatorInputs): CalcResult {
       { key: "regularPay", label: "Regular pay", kind: "currency", value: regularPay },
       { key: "overtimePay", label: "Overtime pay", kind: "currency", value: overtimePay },
       { key: "overtimeRate", label: "Overtime rate", kind: "currency", value: overtimeRate },
+      { key: "hourlyRate", label: "Hourly rate", kind: "currency", value: hourlyRate },
     ],
     narrative: `At {hourlyRate}/hr with ${overtimeHours} overtime hour${overtimeHours === 1 ? "" : "s"} at ${multiplier}×, you earn {overtimePay} in overtime on top of {regularPay} regular pay — {total} total.`,
     data: { total, regularPay, overtimePay, overtimeRate },
@@ -68,11 +76,17 @@ export function calculateLtv(inputs: CalculatorInputs): CalcResult {
   if (revenuePerPeriod <= 0) return { ok: false, error: "Revenue per period must be greater than zero.", metrics: [] };
   if (lifespan <= 0) return { ok: false, error: "Customer lifespan must be greater than zero.", metrics: [] };
 
-  const ltv = roundMoney(revenuePerPeriod * (marginPercent / 100) * lifespan);
+  const rawLtv = revenuePerPeriod * (marginPercent / 100) * lifespan;
+  if (!allFinite(rawLtv)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const ltv = roundMoney(rawLtv);
   const ratio = cac > 0 ? roundTo(ltv / cac, 2) : null;
 
   const metrics = [
     { key: "ltv", label: "Customer lifetime value", kind: "currency" as const, value: ltv, primary: true },
+    { key: "revenuePerPeriod", label: "Revenue per period", kind: "currency" as const, value: revenuePerPeriod },
+    { key: "marginPercent", label: "Gross margin", kind: "percent" as const, value: marginPercent },
   ];
   if (ratio !== null) {
     metrics.push({ key: "ratio", label: "LTV : CAC ratio", kind: "text" as const, value: `${ratio} : 1` } as never);

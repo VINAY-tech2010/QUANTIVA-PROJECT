@@ -48,6 +48,21 @@ export function removeRaw(key: string): boolean {
   }
 }
 
+/**
+ * Copy a key's raw value to `${key}-legacy` so a future storage-format change
+ * never silently destroys a user's data: the new format reads the fresh key,
+ * while the legacy copy stays available for manual recovery.
+ */
+export function backupRaw(key: string): void {
+  if (!storageAvailable()) return;
+  try {
+    const raw = window.localStorage.getItem(PREFIX + key);
+    if (raw !== null) window.localStorage.setItem(PREFIX + key + "-legacy", raw);
+  } catch {
+    // best effort only
+  }
+}
+
 /** Remove every QUANTIVA key. Returns the number removed. */
 export function clearAll(): number {
   if (!storageAvailable()) return 0;

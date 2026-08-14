@@ -21,12 +21,13 @@ export function ResultActions({ calculator, inputs, result }: Props) {
   const { currency } = useCurrency();
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
 
   if (!result.ok) return null;
 
   function onSave() {
     const primary = result.metrics.find((m) => m.primary) ?? result.metrics[0] ?? null;
-    saveCalculation({
+    const ok = saveCalculation({
       id: `${calculator.id}-${Date.now()}`,
       calculatorId: calculator.id,
       calculatorName: calculator.name,
@@ -39,9 +40,15 @@ export function ResultActions({ calculator, inputs, result }: Props) {
       currency: calculator.usesCurrency ? currency : undefined,
       createdAt: Date.now(),
     });
-    setSaved(true);
-    playConfirm();
-    setTimeout(() => setSaved(false), 2000);
+    if (ok) {
+      setSaved(true);
+      setSaveFailed(false);
+      playConfirm();
+      setTimeout(() => setSaved(false), 2000);
+    } else {
+      setSaveFailed(true);
+      setTimeout(() => setSaveFailed(false), 2000);
+    }
   }
 
   async function onShare() {
@@ -64,7 +71,11 @@ export function ResultActions({ calculator, inputs, result }: Props) {
   return (
     <div className="flex flex-wrap gap-2">
       <button type="button" className="btn-ghost text-sm" onClick={onSave}>
-        {saved ? "✓ Saved" : "Save calculation"}
+        {saveFailed
+          ? "Couldn't save (storage unavailable)"
+          : saved
+            ? "✓ Saved"
+            : "Save calculation"}
       </button>
       <button type="button" className="btn-ghost text-sm" onClick={onShare}>
         {copied ? "✓ Link copied" : "Share link"}

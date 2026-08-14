@@ -17,12 +17,17 @@ export async function GET(request: Request) {
 
   try {
     const table = await currencyService.getRates(base);
+    // Rates change at most daily per provider; a short edge + browser cache
+    // keeps the converter responsive without serving stale numbers.
     return NextResponse.json(table, {
-      headers: { "Cache-Control": "no-store" },
+      headers: {
+        "Cache-Control": "public, s-maxage=300, max-age=60",
+      },
     });
   } catch (error) {
+    void error;
     return NextResponse.json(
-      { error: "Unable to load exchange rates.", detail: error instanceof Error ? error.message : "unknown" },
+      { error: "Unable to load exchange rates." },
       { status: 502 },
     );
   }

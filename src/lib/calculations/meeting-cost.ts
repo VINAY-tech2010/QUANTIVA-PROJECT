@@ -1,5 +1,6 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
-import { roundMoney, toNumber } from "@/lib/utils/math";
+import { allFinite, roundMoney, toNumber } from "@/lib/utils/math";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 /** Meeting cost — the fully-loaded cost of a meeting across attendees. */
 export function calculateMeetingCost(inputs: CalculatorInputs): CalcResult {
@@ -18,7 +19,11 @@ export function calculateMeetingCost(inputs: CalculatorInputs): CalcResult {
   }
 
   const hours = durationMinutes / 60;
-  const cost = roundMoney(attendees * avgHourly * hours);
+  const rawCost = attendees * avgHourly * hours;
+  if (!allFinite(rawCost, rawCost / durationMinutes, rawCost * 52)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const cost = roundMoney(rawCost);
   const perMinute = roundMoney(cost / durationMinutes);
   // Annualized if this meeting recurs weekly.
   const weeklyAnnualized = roundMoney(cost * 52);

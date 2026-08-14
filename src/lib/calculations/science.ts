@@ -1,5 +1,6 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
 import { roundTo, toNumber } from "@/lib/utils/math";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 /**
  * Ohm's law: V = I × R. Solve for the missing quantity.
@@ -53,7 +54,11 @@ export function calculateKineticEnergy(inputs: CalculatorInputs): CalcResult {
   if (mass <= 0) return { ok: false, error: "Mass must be greater than zero.", metrics: [] };
   if (velocity < 0) return { ok: false, error: "Velocity cannot be negative.", metrics: [] };
 
-  const ke = roundTo(0.5 * mass * velocity * velocity, 4);
+  const rawKe = 0.5 * mass * velocity * velocity;
+  if (!Number.isFinite(rawKe)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const ke = roundTo(rawKe, 4);
 
   return {
     ok: true,

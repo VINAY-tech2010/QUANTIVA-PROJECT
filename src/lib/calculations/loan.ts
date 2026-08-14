@@ -1,5 +1,6 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
-import { monthlyPayment, roundMoney, toNumber } from "@/lib/utils/math";
+import { monthlyPayment, roundMoney, toNumber, allFinite } from "@/lib/utils/math";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 /**
  * Loan calculator — standard amortizing loan.
@@ -19,10 +20,18 @@ export function calculateLoan(inputs: CalculatorInputs): CalcResult {
     return { ok: false, error: "Enter a term greater than zero.", metrics: [] };
   }
 
-  const termMonths = Math.round(termYears * 12);
+    const termMonths = Math.round(termYears * 12);
+  if (termMonths < 1) {
+    return { ok: false, error: "Enter a term of at least one month.", metrics: [] };
+  }
   const payment = monthlyPayment(principal, annualRate, termMonths);
-  const totalRepayment = roundMoney(payment * termMonths);
+  const rawTotalRepayment = payment * termMonths;
+  const totalRepayment = roundMoney(rawTotalRepayment);
   const totalInterest = roundMoney(totalRepayment - principal);
+
+  if (!allFinite(payment, rawTotalRepayment)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
 
   return {
     ok: true,

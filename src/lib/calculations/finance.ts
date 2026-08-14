@@ -1,5 +1,6 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
-import { roundTo, roundMoney, toNumber } from "@/lib/utils/math";
+import { allFinite, roundTo, roundMoney, toNumber } from "@/lib/utils/math";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 /**
  * Simple interest: I = P · r · t.
@@ -13,7 +14,11 @@ export function calculateSimpleInterest(inputs: CalculatorInputs): CalcResult {
   if (rate < 0) return { ok: false, error: "Rate cannot be negative.", metrics: [] };
   if (years <= 0) return { ok: false, error: "Time must be greater than zero.", metrics: [] };
 
-  const interest = roundMoney((principal * rate * years) / 100);
+  const rawInterest = (principal * rate * years) / 100;
+  if (!allFinite(rawInterest, principal + rawInterest)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const interest = roundMoney(rawInterest);
   const total = roundMoney(principal + interest);
 
   return {
@@ -37,7 +42,11 @@ export function calculateRoi(inputs: CalculatorInputs): CalcResult {
 
   if (invested <= 0) return { ok: false, error: "The amount invested must be greater than zero.", metrics: [] };
 
-  const gain = roundMoney(returned - invested);
+  const rawGain = returned - invested;
+  if (!allFinite(rawGain, rawGain / invested)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const gain = roundMoney(rawGain);
   const roi = roundTo((gain / invested) * 100, 2);
 
   return {
@@ -67,7 +76,11 @@ export function calculateInflation(inputs: CalculatorInputs): CalcResult {
   if (amount <= 0) return { ok: false, error: "Amount must be greater than zero.", metrics: [] };
   if (years <= 0) return { ok: false, error: "Years must be greater than zero.", metrics: [] };
 
-  const futureValue = roundMoney(amount * Math.pow(1 + rate / 100, years));
+  const rawFuture = amount * Math.pow(1 + rate / 100, years);
+  if (!allFinite(rawFuture)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const futureValue = roundMoney(rawFuture);
   const increase = roundMoney(futureValue - amount);
   const pctIncrease = roundTo((increase / amount) * 100, 2);
 
@@ -77,6 +90,7 @@ export function calculateInflation(inputs: CalculatorInputs): CalcResult {
       { key: "futureValue", label: `Equivalent in ${years} years`, kind: "currency", value: futureValue, primary: true },
       { key: "increase", label: "Purchasing power lost", kind: "currency", value: increase, tone: "warning" },
       { key: "pctIncrease", label: "Price increase", kind: "percent", value: pctIncrease },
+      { key: "amount", label: "Current value", kind: "currency", value: amount },
     ],
     narrative: `At ${rate}% annual inflation, {amount} today will have the same purchasing power as {futureValue} in ${years} year${years === 1 ? "" : "s"} — prices rise by ${pctIncrease}%.`,
     data: { futureValue, increase, pctIncrease },
@@ -106,6 +120,10 @@ export function calculateSalary(inputs: CalculatorInputs): CalcResult {
     case "daily": annual = amount * weeksPerYear * 5; break;
     case "hourly": annual = amount * hoursPerWeek * weeksPerYear; break;
     default: annual = amount;
+  }
+
+  if (!allFinite(annual)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
   }
 
   const monthly = annual / 12;
@@ -144,7 +162,11 @@ export function calculateCommission(inputs: CalculatorInputs): CalcResult {
   if (sales < 0) return { ok: false, error: "Sales cannot be negative.", metrics: [] };
   if (rate < 0) return { ok: false, error: "Commission rate cannot be negative.", metrics: [] };
 
-  const commission = roundMoney((sales * rate) / 100);
+  const rawCommission = (sales * rate) / 100;
+  if (!allFinite(rawCommission, base + rawCommission)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const commission = roundMoney(rawCommission);
   const total = roundMoney(base + commission);
 
   return {
@@ -180,6 +202,8 @@ export function calculateMargin(inputs: CalculatorInputs): CalcResult {
       { key: "profit", label: "Profit per unit", kind: "currency", value: profit, primary: true, tone: profit >= 0 ? "positive" : "negative" },
       { key: "margin", label: "Profit margin", kind: "percent", value: margin },
       { key: "markup", label: "Markup", kind: "percent", value: markup },
+      { key: "price", label: "Selling price", kind: "currency", value: price },
+      { key: "cost", label: "Cost", kind: "currency", value: cost },
     ],
     narrative: `Selling at {price} with a cost of {cost} gives {profit} profit per unit — a ${margin}% margin and a ${markup}% markup.`,
     data: { profit, margin, markup },

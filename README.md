@@ -44,9 +44,34 @@ to the owner inbox. Until these are set, the API returns a clear
 | --- | --- |
 | `FEEDBACK_TO_EMAIL` | **Required.** Owner inbox that receives messages. |
 | `FEEDBACK_FROM_EMAIL` | Sender address (provider-dependent; verified domain for Resend). |
-| `EMAIL_PROVIDER` | `resend` or `smtp-webhook` (default). |
+| `EMAIL_PROVIDER` | `resend` or `smtp-webhook`. Optional — auto-detected from which credentials are present. |
 | `EMAIL_PROVIDER_API_KEY` | API key for the chosen provider. Server-side secret. |
 | `FEEDBACK_SMTP_URL` | Webhook endpoint for `smtp-webhook`. Receives a JSON POST `{ to, from, subject, text, html, replyTo }`. |
+
+#### Cloudflare Workers
+
+All email variables are read server-side only (`src/lib/email/send.ts` imports
+`server-only`, so bundling them into client code fails the build). When
+deploying to Cloudflare Workers, store the API key as a **secret** so it never
+enters client bundles or build artifacts:
+
+```bash
+wrangler secret put EMAIL_PROVIDER_API_KEY
+```
+
+Add the non-secret variables (`FEEDBACK_TO_EMAIL`, `FEEDBACK_FROM_EMAIL`,
+`EMAIL_PROVIDER`) as plain worker variables — in the dashboard
+(Workers & Pages → your worker → Settings → Variables and Secrets) or
+`wrangler.toml` `[vars]`. Provider selection auto-detects, so a worker that
+only received the `EMAIL_PROVIDER_API_KEY` secret still delivers via Resend.
+If nothing is configured the API returns 503 with a friendly message and logs
+which variable is missing server-side (no secrets or internals are ever sent
+to the client).
+
+Verify the production endpoint without exposing credentials by submitting the
+form at `/improvement` or POSTing a valid payload with curl — the 503/502/200
+status distinguishes "not configured" / "provider rejected" / "delivered", and
+the key itself is only ever sent to `api.resend.com` over HTTPS.
 
 ### Advertising (Google AdSense) — public values
 

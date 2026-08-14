@@ -1,5 +1,6 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
-import { roundMoney, toNumber } from "@/lib/utils/math";
+import { allFinite, roundMoney, toNumber } from "@/lib/utils/math";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 /**
  * Rent affordability — recommended maximum rent based on income and a target
@@ -16,8 +17,13 @@ export function calculateRentAffordability(inputs: CalculatorInputs): CalcResult
     return { ok: false, error: "Target percentage must be between 0 and 100.", metrics: [] };
   }
 
-  const maxRent = roundMoney((monthlyIncome * targetPercent) / 100);
-  const yearlyIncome = roundMoney(monthlyIncome * 12);
+  const rawMaxRent = (monthlyIncome * targetPercent) / 100;
+  const rawYearlyIncome = monthlyIncome * 12;
+  if (!allFinite(rawMaxRent, rawYearlyIncome)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const maxRent = roundMoney(rawMaxRent);
+  const yearlyIncome = roundMoney(rawYearlyIncome);
 
   return {
     ok: true,

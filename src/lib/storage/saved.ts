@@ -1,16 +1,32 @@
 import type { SavedCalculation, StorageEnvelope } from "@/types";
-import { readRaw, writeRaw, removeRaw } from "./local";
+import { backupRaw, readRaw, writeRaw, removeRaw } from "./local";
 
 const KEY = "saved";
 const VERSION = 1;
 const MAX_ENTRIES = 200;
 
+/** Reject malformed items so a single corrupted entry can never crash the dashboard. */
+function isValidSaved(item: unknown): item is SavedCalculation {
+  if (typeof item !== "object" || item === null) return false;
+  const s = item as Record<string, unknown>;
+  return (
+    typeof s.id === "string" &&
+    typeof s.calculatorId === "string" &&
+    typeof s.createdAt === "number" &&
+    typeof s.inputs === "object" &&
+    s.inputs !== null
+  );
+}
+
 function loadEnvelope(): StorageEnvelope<SavedCalculation[]> {
   const envelope = readRaw<StorageEnvelope<SavedCalculation[]>>(KEY);
   if (!envelope || envelope.version !== VERSION || !Array.isArray(envelope.data)) {
+    if (envelope !== null) backupRaw(KEY);
     return { version: VERSION, data: [] };
   }
-  return envelope;
+  const valid = envelope.data.filter(isValidSaved);
+  if (valid.length !== envelope.data.length) backupRaw(KEY);
+  return { version: VERSION, data: valid };
 }
 
 function persist(items: SavedCalculation[]): boolean {

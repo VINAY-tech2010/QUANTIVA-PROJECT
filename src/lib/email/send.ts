@@ -6,19 +6,28 @@ import "server-only";
  *
  * This module must only be imported from server code (route handlers / server
  * components). It reads private configuration from environment variables.
+ * Compatible with Node.js (local dev, Netlify) and Cloudflare Workers
+ * (OpenNext maps worker bindings/secrets to process.env) — it only uses
+ * `fetch` and `process.env`, no Node-only APIs.
  *
  * Design goals:
- * - Secrets stay server-side (never NEXT_PUBLIC_*).
+ * - Secrets stay server-side (never NEXT_PUBLIC_*). On Cloudflare Workers the
+ *   API key is stored as a worker secret (`wrangler secret put
+ *   EMAIL_PROVIDER_API_KEY`), which never reaches client bundles.
  * - The provider is replaceable. A single `sendEmail` abstraction is used; the
- *   concrete transport is selected by environment variables.
+ *   concrete transport is selected by environment variables, with
+ *   auto-detection: if EMAIL_PROVIDER is unset (e.g. not propagated to the
+ *   worker), the provider whose credentials are actually present is used.
+ * - Graceful failure: missing configuration throws EmailNotConfiguredError
+ *   (callers return 503); provider rejection throws a generic Error (502).
  * - No fake success: callers only report success when the provider accepted
  *   the message.
  *
  * Configuration (see .env.example):
  *   FEEDBACK_TO_EMAIL       — owner inbox (required to enable delivery)
  *   FEEDBACK_FROM_EMAIL     — sender address (provider-dependent)
- *   EMAIL_PROVIDER          — "resend" | "smtp-webhook" (default: smtp-webhook)
- *   EMAIL_PROVIDER_API_KEY  — API key for the chosen provider (e.g. Resend)
+ *   EMAIL_PROVIDER          — "resend" | "smtp-webhook" (optional; auto-detected)
+ *   EMAIL_PROVIDER_API_KEY  — API key for Resend (Cloudflare secret)
  *   FEEDBACK_SMTP_URL       — generic webhook endpoint (smtp-webhook provider)
  */
 
@@ -47,6 +56,14 @@ interface EmailMessage {
   text: string;
   html: string;
   replyTo?: string;
+}
+
+export type EmailProviderName = "resend" | "smtp-webhook";
+
+interface ResolvedProvider {
+  name: EmailProviderName;
+  /** Variable names that would change the selected provider (server-side hint). */
+  hint?: string;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -143,19 +160,102 @@ export async function sendFeedbackEmail(input: FeedbackEmailInput): Promise<void
   await sendEmail(message);
 }
 
+/**
+ * Resolve the email transport for this deployment.
+ *
+ * Preference order:
+ *   1. EMAIL_PROVIDER when set and its required configuration is present.
+ *   2. Auto-detection: Resend when EMAIL_PROVIDER_API_KEY is set, otherwise
+ *      smtp-webhook when FEEDBACK_SMTP_URL is set.
+ *
+ * On Cloudflare Workers only the secret (EMAIL_PROVIDER_API_KEY) may have
+ * been propagated; if EMAIL_PROVIDER itself is missing or its config is
+ * incomplete, the provider with real credentials is selected instead of
+ * reporting "unavailable".
+ */
+export function resolveProvider(
+  env: Record<string, string | undefined>,
+): ResolvedProvider | null {
+  const explicit = (env.EMAIL_PROVIDER ?? "").trim().toLowerCase();
+  const hasKey = Boolean(env.EMAIL_PROVIDER_API_KEY?.trim());
+  const hasUrl = Boolean(env.FEEDBACK_SMTP_URL?.trim());
+
+  if (explicit === "resend" && hasKey) {
+    return { name: "resend" };
+  }
+  if (explicit === "smtp-webhook" && hasUrl) {
+    return { name: "smtp-webhook" };
+  }
+  if (explicit && explicit !== "resend" && explicit !== "smtp-webhook") {
+    return hasKey
+      ? { name: "resend", hint: `Unrecognized EMAIL_PROVIDER "${explicit}"; using Resend.` }
+      : hasUrl
+        ? { name: "smtp-webhook", hint: `Unrecognized EMAIL_PROVIDER "${explicit}"; using smtp-webhook.` }
+        : null;
+  }
+  if (hasKey) {
+    return explicit
+      ? { name: "resend", hint: `EMAIL_PROVIDER "${explicit}" is unconfigured; using Resend.` }
+      : { name: "resend" };
+  }
+  if (hasUrl) {
+    return explicit
+      ? { name: "smtp-webhook", hint: `EMAIL_PROVIDER "${explicit}" is unconfigured; using smtp-webhook.` }
+      : { name: "smtp-webhook" };
+  }
+  return null;
+}
+
 /** Dispatch to the configured provider. */
 async function sendEmail(message: EmailMessage): Promise<void> {
-  const provider = (process.env.EMAIL_PROVIDER ?? "smtp-webhook").toLowerCase();
-  switch (provider) {
+  const provider = resolveProvider(process.env);
+  if (!provider) {
+    throw new EmailNotConfiguredError(
+      "No email provider configured. Set EMAIL_PROVIDER_API_KEY (Resend) or " +
+        "FEEDBACK_SMTP_URL (smtp-webhook) and FEEDBACK_TO_EMAIL. On Cloudflare " +
+        "Workers store EMAIL_PROVIDER_API_KEY as a secret via " +
+        "`wrangler secret put EMAIL_PROVIDER_API_KEY`.",
+    );
+  }
+  if (provider.hint) {
+    console.warn("[feedback] email provider:", provider.hint);
+  }
+  switch (provider.name) {
     case "resend":
       return sendViaResend(message);
     case "smtp-webhook":
-    default:
       return sendViaWebhook(message);
   }
 }
 
-/** Resend (https://resend.com) — simple transactional email API. */
+function buildResendPayload(message: EmailMessage): Record<string, unknown> {
+  // Treat an empty/whitespace sender as unset so the verified default is used.
+  const from =
+    message.from && message.from.trim().length > 0
+      ? message.from
+      : "calkulater <onboarding@resend.dev>";
+  return {
+    from,
+    to: [message.to],
+    subject: message.subject,
+    text: message.text,
+    html: message.html,
+    reply_to: message.replyTo,
+  };
+}
+
+function buildWebhookPayload(message: EmailMessage): Record<string, unknown> {
+  return {
+    to: message.to,
+    from: message.from,
+    subject: message.subject,
+    text: message.text,
+    html: message.html,
+    replyTo: message.replyTo,
+  };
+}
+
+/** smtp-webhook — generic webhook endpoint (see .env.example). */
 async function sendViaWebhook(message: EmailMessage): Promise<void> {
   const endpoint = process.env.FEEDBACK_SMTP_URL;
   if (!endpoint) {
@@ -164,44 +264,26 @@ async function sendViaWebhook(message: EmailMessage): Promise<void> {
   const res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      to: message.to,
-      from: message.from,
-      subject: message.subject,
-      text: message.text,
-      html: message.html,
-      replyTo: message.replyTo,
-    }),
+    body: JSON.stringify(buildWebhookPayload(message)),
   });
   if (!res.ok) {
     throw new Error(`Email webhook responded ${res.status}`);
   }
 }
 
+/** Resend (https://resend.com) — simple transactional email API. */
 async function sendViaResend(message: EmailMessage): Promise<void> {
   const apiKey = process.env.EMAIL_PROVIDER_API_KEY;
   if (!apiKey) {
     throw new EmailNotConfiguredError("No EMAIL_PROVIDER_API_KEY configured");
   }
-  // Treat an empty/whitespace sender as unset so the verified default is used.
-  const from =
-    message.from && message.from.trim().length > 0
-      ? message.from
-      : "calkulater <onboarding@resend.dev>";
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      from,
-      to: [message.to],
-      subject: message.subject,
-      text: message.text,
-      html: message.html,
-      reply_to: message.replyTo,
-    }),
+    body: JSON.stringify(buildResendPayload(message)),
   });
   if (!res.ok) {
     throw new Error(`Resend responded ${res.status}`);
@@ -209,4 +291,12 @@ async function sendViaResend(message: EmailMessage): Promise<void> {
 }
 
 /* Exported for unit tests only. */
-export const __test__ = { escapeHtml, buildSubject, buildText, buildHtml };
+export const __test__ = {
+  escapeHtml,
+  buildSubject,
+  buildText,
+  buildHtml,
+  resolveProvider,
+  buildResendPayload,
+  buildWebhookPayload,
+};

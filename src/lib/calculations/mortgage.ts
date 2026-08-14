@@ -1,5 +1,6 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
-import { monthlyPayment, roundMoney, toNumber } from "@/lib/utils/math";
+import { allFinite, monthlyPayment, roundMoney, toNumber } from "@/lib/utils/math";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 /**
  * Mortgage — home loan payment, total cost and interest.
@@ -29,7 +30,11 @@ export function calculateMortgage(inputs: CalculatorInputs): CalcResult {
   const principal = roundMoney(homePrice - downPayment);
   const termMonths = Math.round(termYears * 12);
   const payment = monthlyPayment(principal, annualRate, termMonths);
-  const totalRepayment = roundMoney(payment * termMonths);
+  const rawTotal = payment * termMonths;
+  if (!allFinite(payment, rawTotal)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const totalRepayment = roundMoney(rawTotal);
   const totalInterest = roundMoney(totalRepayment - principal);
   const downPercent = roundMoney((downPayment / homePrice) * 100);
   const totalCost = roundMoney(totalRepayment + downPayment);
@@ -42,6 +47,8 @@ export function calculateMortgage(inputs: CalculatorInputs): CalcResult {
       { key: "totalInterest", label: "Total interest", kind: "currency", value: totalInterest },
       { key: "totalCost", label: "Total cost of home", kind: "currency", value: totalCost },
       { key: "downPercent", label: "Down payment", kind: "percent", value: downPercent },
+      { key: "downPayment", label: "Down payment amount", kind: "currency", value: downPayment },
+      { key: "termMonths", label: "Loan term", kind: "number", value: termMonths },
     ],
     narrative:
       "With {downPayment} down, your loan is {principal} and the monthly payment is about {monthlyPayment} over {termMonths} months. " +

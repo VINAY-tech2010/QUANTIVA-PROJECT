@@ -1,5 +1,6 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
-import { roundMoney, roundTo, toNumber } from "@/lib/utils/math";
+import { allFinite, roundMoney, roundTo, toNumber } from "@/lib/utils/math";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 /**
  * Split a bill (with optional tip) among a number of people.
@@ -14,7 +15,11 @@ export function calculateBillSplit(inputs: CalculatorInputs): CalcResult {
     return { ok: false, error: "Enter at least one person.", metrics: [] };
   }
 
-  const tip = roundMoney((bill * tipPercent) / 100);
+  const rawTip = (bill * tipPercent) / 100;
+  if (!allFinite(rawTip, bill + rawTip)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const tip = roundMoney(rawTip);
   const total = roundMoney(bill + tip);
   const perPerson = roundMoney(total / people);
 
@@ -24,6 +29,7 @@ export function calculateBillSplit(inputs: CalculatorInputs): CalcResult {
       { key: "perPerson", label: `Each of ${people} pays`, kind: "currency", value: perPerson, primary: true },
       { key: "total", label: "Total (incl. tip)", kind: "currency", value: total },
       { key: "tip", label: `Tip (${tipPercent}%)`, kind: "currency", value: tip },
+      { key: "bill", label: "Bill amount", kind: "currency", value: bill },
     ],
     narrative: `A bill of {bill} with a ${tipPercent}% tip comes to {total}. Split ${people} way${people === 1 ? "" : "s"}, each person pays {perPerson}.`,
     data: { perPerson, total, tip },
@@ -43,6 +49,9 @@ export function calculateFuelCost(inputs: CalculatorInputs): CalcResult {
   if (price < 0) return { ok: false, error: "Fuel price cannot be negative.", metrics: [] };
 
   const fuelNeeded = distance / efficiency;
+  if (!allFinite(fuelNeeded, fuelNeeded * price)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
   const cost = roundMoney(fuelNeeded * price);
 
   return {
@@ -50,6 +59,7 @@ export function calculateFuelCost(inputs: CalculatorInputs): CalcResult {
     metrics: [
       { key: "cost", label: "Total fuel cost", kind: "currency", value: cost, primary: true },
       { key: "fuel", label: "Fuel needed", kind: "text", value: `${roundTo(fuelNeeded, 2)} units` },
+      { key: "price", label: "Price per unit", kind: "currency", value: price },
     ],
     narrative: `A ${distance}-unit trip at ${efficiency} units of distance per unit of fuel needs ${roundTo(fuelNeeded, 2)} units of fuel, costing {cost} at {price} per unit.`,
     data: { cost, fuelNeeded: roundTo(fuelNeeded, 2) },
@@ -70,6 +80,9 @@ export function calculateElectricityCost(inputs: CalculatorInputs): CalcResult {
   if (days <= 0) return { ok: false, error: "Days must be greater than zero.", metrics: [] };
 
   const kwh = (watts / 1000) * hoursPerDay * days;
+  if (!allFinite(kwh, kwh * ratePerKwh)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
   const cost = roundMoney(kwh * ratePerKwh);
 
   return {
@@ -77,6 +90,7 @@ export function calculateElectricityCost(inputs: CalculatorInputs): CalcResult {
     metrics: [
       { key: "cost", label: `Cost over ${days} days`, kind: "currency", value: cost, primary: true },
       { key: "kwh", label: "Energy used", kind: "text", value: `${roundTo(kwh, 2)} kWh` },
+      { key: "rate", label: "Rate per kWh", kind: "currency", value: ratePerKwh },
     ],
     narrative: `A ${watts} W device running ${hoursPerDay} hour${hoursPerDay === 1 ? "" : "s"} a day for ${days} day${days === 1 ? "" : "s"} uses ${roundTo(kwh, 2)} kWh, costing {cost} at {rate} per kWh.`,
     data: { cost, kwh: roundTo(kwh, 2) },
@@ -102,6 +116,9 @@ export function calculatePaint(inputs: CalculatorInputs): CalcResult {
   // Four walls (ceiling excluded).
   const wallArea = 2 * height * (length + width);
   const totalArea = wallArea * coats;
+  if (!allFinite(wallArea, totalArea, totalArea / coverage)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
   const litres = totalArea / coverage;
 
   return {

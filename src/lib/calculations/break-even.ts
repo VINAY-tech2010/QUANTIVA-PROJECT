@@ -1,5 +1,6 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
 import { roundMoney, toNumber } from "@/lib/utils/math";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 /** Break-even — units / revenue needed to cover fixed costs. */
 export function calculateBreakEven(inputs: CalculatorInputs): CalcResult {
@@ -27,7 +28,11 @@ export function calculateBreakEven(inputs: CalculatorInputs): CalcResult {
   }
 
   const units = Math.ceil(fixedCosts / margin);
-  const revenue = roundMoney(units * pricePerUnit);
+  const rawRevenue = units * pricePerUnit;
+  if (!Number.isFinite(rawRevenue)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const revenue = roundMoney(rawRevenue);
   const marginPercent = roundMoney((margin / pricePerUnit) * 100);
 
   return {

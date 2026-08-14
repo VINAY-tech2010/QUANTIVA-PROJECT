@@ -15,6 +15,10 @@ const SUGGESTIONS = [
   "convert 10 miles to kilometers",
 ];
 
+/** Hard cap on search input length: extremely long strings are never meaningful
+ * queries, and this keeps the intent parser's work bounded. */
+const MAX_QUERY_LENGTH = 400;
+
 /** The kinds of result panel the search can show. */
 type PanelState =
   | { kind: "idle" }
@@ -69,6 +73,13 @@ export function IntentSearch() {
   function runSearch(raw?: string) {
     const trimmed = (raw ?? query).trim();
     if (!trimmed) return;
+    if (trimmed.length > MAX_QUERY_LENGTH) {
+      setPanel({
+        kind: "no-result",
+        candidates: [],
+      });
+      return;
+    }
 
     // 1. Calculation intent (existing natural-language engine).
     const intent = parseIntent(trimmed);
@@ -167,6 +178,7 @@ export function IntentSearch() {
           placeholder="What do you need to calculate?"
           className="input py-4 pl-11 pr-32 text-base"
           autoComplete="off"
+          maxLength={MAX_QUERY_LENGTH}
         />
         <button
           type="submit"

@@ -1,5 +1,6 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
-import { futureValue, roundMoney, toNumber } from "@/lib/utils/math";
+import { allFinite, futureValue, roundMoney, toNumber } from "@/lib/utils/math";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 const CONTRIBUTIONS_PER_YEAR: Record<string, number> = {
   weekly: 52,
@@ -31,7 +32,11 @@ export function calculateCompoundGrowth(inputs: CalculatorInputs): CalcResult {
 
   const contributionsPerYear = CONTRIBUTIONS_PER_YEAR[frequency] ?? 12;
   const finalValue = futureValue(starting, contribution, annualRate, years, 12, contributionsPerYear);
-  const totalContributions = roundMoney(starting + contribution * contributionsPerYear * years);
+  const rawContributions = starting + contribution * contributionsPerYear * years;
+  if (!allFinite(finalValue, rawContributions)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const totalContributions = roundMoney(rawContributions);
   const growthEarned = roundMoney(finalValue - totalContributions);
 
   return {
@@ -40,6 +45,7 @@ export function calculateCompoundGrowth(inputs: CalculatorInputs): CalcResult {
       { key: "finalValue", label: "Final value", kind: "currency", value: finalValue, primary: true },
       { key: "totalContributions", label: "Total you put in", kind: "currency", value: totalContributions },
       { key: "growthEarned", label: "Growth earned", kind: "currency", value: growthEarned, tone: growthEarned >= 0 ? "positive" : "negative" },
+      { key: "years", label: "Time period", kind: "number", value: years },
     ],
     narrative:
       "After {years} years you could have {finalValue}. You put in {totalContributions} and growth added {growthEarned}. " +

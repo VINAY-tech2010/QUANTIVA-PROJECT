@@ -1,5 +1,6 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
 import { roundTo, toNumber } from "@/lib/utils/math";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 /**
  * Number base converter: decimal ↔ binary ↔ octal ↔ hexadecimal.
@@ -11,6 +12,16 @@ export function calculateBaseConvert(inputs: CalculatorInputs): CalcResult {
   if (!value) return { ok: false, error: "Enter a number to convert.", metrics: [] };
   if (![2, 8, 10, 16].includes(fromBase)) {
     return { ok: false, error: "Unsupported base.", metrics: [] };
+  }
+
+  // Strictly validate the whole string for the chosen base: parseInt stops at
+  // the first invalid character, so "12abc" or "1.5" must not silently become
+  // a partial conversion.
+  const digits = fromBase === 16 ? "[0-9a-fA-F]" : `[0-${fromBase - 1}]`;
+  const sign = /^[+-]/.test(value) ? "[-+]?" : "";
+  const valid = new RegExp(`^${sign}${digits}+$`).test(value);
+  if (!valid) {
+    return { ok: false, error: `That is not a valid base-${fromBase} number.`, metrics: [] };
   }
 
   const decimal = Number.parseInt(value, fromBase);
@@ -47,6 +58,10 @@ export function calculateDownloadTime(inputs: CalculatorInputs): CalcResult {
   // MB (megabytes) → megabits: × 8.
   const megabits = sizeMb * 8;
   const totalSeconds = megabits / speedMbps;
+
+  if (!Number.isFinite(totalSeconds)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
 
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);

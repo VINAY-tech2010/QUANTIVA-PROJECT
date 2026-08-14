@@ -1,5 +1,6 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
 import { roundMoney, toNumber } from "@/lib/utils/math";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 /** Sales tax — tax amount and total price. */
 export function calculateSalesTax(inputs: CalculatorInputs): CalcResult {
@@ -13,7 +14,11 @@ export function calculateSalesTax(inputs: CalculatorInputs): CalcResult {
     return { ok: false, error: "Tax rate cannot be negative.", metrics: [] };
   }
 
-  const taxAmount = roundMoney((price * taxRate) / 100);
+  const rawTax = (price * taxRate) / 100;
+  if (!Number.isFinite(rawTax)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const taxAmount = roundMoney(rawTax);
   const total = roundMoney(price + taxAmount);
 
   return {
@@ -22,6 +27,7 @@ export function calculateSalesTax(inputs: CalculatorInputs): CalcResult {
       { key: "total", label: "Total with tax", kind: "currency", value: total, primary: true },
       { key: "taxAmount", label: "Tax amount", kind: "currency", value: taxAmount },
       { key: "price", label: "Price before tax", kind: "currency", value: price },
+      { key: "taxRate", label: "Tax rate", kind: "percent", value: taxRate },
     ],
     narrative:
       "At {taxRate} tax, the tax is {taxAmount} and the total is {total}. Estimated calculation based on the values you entered.",

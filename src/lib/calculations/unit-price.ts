@@ -1,5 +1,6 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
 import { roundTo, toNumber } from "@/lib/utils/math";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 /** Unit price — cost per unit to compare package sizes. */
 export function calculateUnitPrice(inputs: CalculatorInputs): CalcResult {
@@ -13,7 +14,11 @@ export function calculateUnitPrice(inputs: CalculatorInputs): CalcResult {
     return { ok: false, error: "Enter the quantity or size.", metrics: [] };
   }
 
-  const unitPrice = roundTo(price / quantity, 4);
+  const rawUnitPrice = price / quantity;
+  if (!Number.isFinite(rawUnitPrice)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const unitPrice = roundTo(rawUnitPrice, 4);
 
   return {
     ok: true,

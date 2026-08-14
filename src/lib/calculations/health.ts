@@ -128,8 +128,11 @@ export function calculatePace(inputs: CalculatorInputs): CalcResult {
   if (totalMinutes <= 0) return { ok: false, error: "Enter a total time greater than zero.", metrics: [] };
 
   const pacePerUnit = totalMinutes / distance; // minutes per km or mile
-  const paceMin = Math.floor(pacePerUnit);
-  const paceSec = Math.round((pacePerUnit - paceMin) * 60);
+  // Round the total pace to whole seconds, then carry overflow into minutes
+  // so a pace like 1:59.6 never displays as "2:60".
+  const totalPaceSeconds = Math.round(pacePerUnit * 60);
+  const paceMin = Math.floor(totalPaceSeconds / 60);
+  const paceSec = totalPaceSeconds % 60;
   const speed = roundTo(distance / (totalMinutes / 60), 2); // units per hour
 
   const label = unit === "mi" ? "mile" : "km";

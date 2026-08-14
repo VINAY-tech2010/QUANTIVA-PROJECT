@@ -1,5 +1,5 @@
 import type { HistoryEntry, StorageEnvelope } from "@/types";
-import { readRaw, writeRaw, removeRaw } from "./local";
+import { backupRaw, readRaw, writeRaw, removeRaw } from "./local";
 
 const KEY = "history";
 const VERSION = 1;
@@ -8,6 +8,7 @@ const MAX_ENTRIES = 100;
 function loadEnvelope(): StorageEnvelope<HistoryEntry[]> {
   const envelope = readRaw<StorageEnvelope<HistoryEntry[]>>(KEY);
   if (!envelope || envelope.version !== VERSION || !Array.isArray(envelope.data)) {
+    if (envelope !== null) backupRaw(KEY);
     return { version: VERSION, data: [] };
   }
   return envelope;

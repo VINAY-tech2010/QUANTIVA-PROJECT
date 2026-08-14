@@ -1,5 +1,6 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
-import { roundMoney, roundTo, toNumber } from "@/lib/utils/math";
+import { allFinite, roundMoney, roundTo, toNumber } from "@/lib/utils/math";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 const PERIODS_PER_YEAR: Record<string, number> = {
   weekly: 52,
@@ -40,6 +41,7 @@ export function calculateSavingsGoal(inputs: CalculatorInputs): CalcResult {
       metrics: [
         { key: "requiredContribution", label: `Required ${frequency} contribution`, kind: "currency", value: 0, primary: true, tone: "positive" },
         { key: "remaining", label: "Remaining to save", kind: "currency", value: 0 },
+        { key: "targetAmount", label: "Goal", kind: "currency", value: target },
       ],
       narrative: "You have already reached your goal of {targetAmount}.",
       data: { requiredContribution: 0, remaining: 0, target },
@@ -56,6 +58,10 @@ export function calculateSavingsGoal(inputs: CalculatorInputs): CalcResult {
   } else {
     const annuityFactor = (Math.pow(1 + periodicRate, totalPeriods) - 1) / periodicRate;
     required = gap / annuityFactor;
+  }
+
+  if (!allFinite(grownCurrent, gap, required)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
   }
   required = roundMoney(Math.max(0, required));
 

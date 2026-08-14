@@ -1,12 +1,25 @@
 import type { Metadata } from "next";
 
+/** Site URL from the environment, validated so a malformed value can never crash `new URL(SITE.url)`. */
+function resolveSiteUrl(): string {
+  const candidate = process.env.NEXT_PUBLIC_SITE_URL;
+  if (!candidate) return "https://calkulater.app";
+  try {
+    const parsed = new URL(candidate.trim());
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") return parsed.origin;
+  } catch {
+    // fall through to the default
+  }
+  return "https://calkulater.app";
+}
+
 /** Canonical site configuration used across metadata, sitemap and JSON-LD. */
 export const SITE = {
   name: "calkulater",
   tagline: "Instant answers to everyday decisions",
   description:
     "calkulater is a premium decision and calculation utility. Instant answers to everyday money, buying, time and productivity questions.",
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://calkulater.app",
+  url: resolveSiteUrl(),
 } as const;
 
 interface PageMetaInput {

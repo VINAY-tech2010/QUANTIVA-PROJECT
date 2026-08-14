@@ -16,9 +16,11 @@ import {
   scenariosForCalculator,
 } from "@/lib/storage/scenarios";
 import { computeScenarioDelta } from "@/lib/scenarios/delta";
+import { sanitizeResult } from "@/lib/calculations/sanitize";
 import { useCurrency } from "@/lib/currency/context";
 import { formatNumber, formatPercent } from "@/lib/currency/formatter";
 import { formatDuration } from "@/lib/utils/math";
+import { useClientSnapshot } from "@/lib/utils/useClientSnapshot";
 
 interface Props {
   calculator: CalculatorConfig;
@@ -30,13 +32,22 @@ interface Props {
   onApply: (overrides: CalculatorInputs) => void;
 }
 
+const EMPTY_SCENARIOS: Scenario[] = [];
+
 export function ScenarioManager({ calculator, inputs, baseline, onApply }: Props) {
   const { format } = useCurrency();
   const calculate = useMemo(() => getCalculator(calculator.id)?.calculate, [calculator.id]);
-  // Hydrate from localStorage lazily; keyed remount per calculator handles switches.
-  const [scenarios, setScenarios] = useState<Scenario[]>(() =>
-    scenariosForCalculator(calculator.id),
+  // Hydration-safe read: server and first client render both see an empty
+  // list, then the snapshot re-renders with the real saved scenarios. The
+  // override state reflects mutations (saves/deletes/renames) made here;
+  // the component is keyed per calculator so the override never leaks.
+  const persisted = useClientSnapshot<Scenario[]>(
+    `scenarios:${calculator.id}`,
+    () => scenariosForCalculator(calculator.id),
+    EMPTY_SCENARIOS,
   );
+  const [override, setOverride] = useState<Scenario[] | null>(null);
+  const scenarios = override ?? persisted;
   const [name, setName] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [compareMode, setCompareMode] = useState(false);
@@ -44,7 +55,7 @@ export function ScenarioManager({ calculator, inputs, baseline, onApply }: Props
   if (!calculator.supportsScenarios) return null;
 
   function refresh() {
-    setScenarios(scenariosForCalculator(calculator.id));
+    setOverride(scenariosForCalculator(calculator.id));
   }
 
   function saveCurrent() {
@@ -81,7 +92,12 @@ export function ScenarioManager({ calculator, inputs, baseline, onApply }: Props
   function deltaFor(scenario: Scenario): ScenarioDelta | null {
     if (!baseline || !calculate) return null;
     const scenarioInputs = { ...inputs, ...scenario.overrides };
-    const scenarioResult = calculate(scenarioInputs);
+    let scenarioResult: CalcResult;
+    try {
+      scenarioResult = sanitizeResult(calculate(scenarioInputs));
+    } catch {
+      return null;
+    }
     return computeScenarioDelta(scenario.id, scenario.name, baseline, scenarioResult);
   }
 
@@ -256,7 +272,12 @@ function ComparisonTable({
     return scenarios
       .map((s) => {
         const scenarioInputs = { ...inputs, ...s.overrides };
-        const scenarioResult = calculate(scenarioInputs);
+        let scenarioResult: CalcResult;
+        try {
+          scenarioResult = sanitizeResult(calculate(scenarioInputs));
+        } catch {
+          return null;
+        }
         return computeScenarioDelta(s.id, s.name, baseline, scenarioResult);
       })
       .filter((d): d is ScenarioDelta => d !== null);

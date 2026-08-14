@@ -1,6 +1,7 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
-import { roundMoney, toNumber } from "@/lib/utils/math";
+import { allFinite, roundMoney, toNumber } from "@/lib/utils/math";
 import { getCurrency } from "@/data/currencies";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 /**
  * Manual currency converter.
@@ -25,8 +26,13 @@ export function calculateCurrencyConvert(inputs: CalculatorInputs): CalcResult {
   const fromSymbol = fromCur?.symbol ?? from;
   const toSymbol = toCur?.symbol ?? to;
 
-  const converted = roundMoney(amount * rate);
-  const inverse = roundMoney(1 / rate);
+  const rawConverted = amount * rate;
+  const rawInverse = 1 / rate;
+  if (!allFinite(rawConverted, rawInverse)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const converted = roundMoney(rawConverted);
+  const inverse = roundMoney(rawInverse);
 
   return {
     ok: true,

@@ -1,5 +1,5 @@
 import type { Scenario, StorageEnvelope } from "@/types";
-import { readRaw, writeRaw, removeRaw } from "./local";
+import { backupRaw, readRaw, writeRaw, removeRaw } from "./local";
 
 const KEY = "scenarios";
 const VERSION = 1;
@@ -7,6 +7,7 @@ const VERSION = 1;
 function loadEnvelope(): StorageEnvelope<Scenario[]> {
   const envelope = readRaw<StorageEnvelope<Scenario[]>>(KEY);
   if (!envelope || envelope.version !== VERSION || !Array.isArray(envelope.data)) {
+    if (envelope !== null) backupRaw(KEY);
     return { version: VERSION, data: [] };
   }
   return envelope;

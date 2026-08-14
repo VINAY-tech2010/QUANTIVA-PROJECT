@@ -1,5 +1,6 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
 import { roundMoney, toNumber } from "@/lib/utils/math";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 /** Discount — final price after a percentage off, and the amount saved. */
 export function calculateDiscount(inputs: CalculatorInputs): CalcResult {
@@ -13,7 +14,11 @@ export function calculateDiscount(inputs: CalculatorInputs): CalcResult {
     return { ok: false, error: "Discount must be between 0 and 100%.", metrics: [] };
   }
 
-  const saved = roundMoney((original * percentOff) / 100);
+  const rawSaved = (original * percentOff) / 100;
+  if (!Number.isFinite(rawSaved)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const saved = roundMoney(rawSaved);
   const finalPrice = roundMoney(original - saved);
 
   return {

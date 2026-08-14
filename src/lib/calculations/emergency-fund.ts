@@ -1,5 +1,6 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
-import { roundMoney, toNumber } from "@/lib/utils/math";
+import { allFinite, roundMoney, toNumber } from "@/lib/utils/math";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 /**
  * Emergency fund — target vs current savings and the shortfall.
@@ -19,7 +20,11 @@ export function calculateEmergencyFund(inputs: CalculatorInputs): CalcResult {
     return { ok: false, error: "Current savings cannot be negative.", metrics: [] };
   }
 
-  const target = roundMoney(monthlyExpenses * months);
+  const rawTarget = monthlyExpenses * months;
+  if (!allFinite(rawTarget, rawTarget - current)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const target = roundMoney(rawTarget);
   const shortfall = roundMoney(Math.max(0, target - current));
   const fundedPercent = target > 0 ? Math.min(100, (current / target) * 100) : 0;
   const monthsCovered = monthlyExpenses > 0 ? current / monthlyExpenses : 0;
@@ -31,6 +36,8 @@ export function calculateEmergencyFund(inputs: CalculatorInputs): CalcResult {
       { key: "shortfall", label: "Shortfall", kind: "currency", value: shortfall, tone: shortfall > 0 ? "warning" : "positive" },
       { key: "fundedPercent", label: "Funded", kind: "percent", value: roundMoney(fundedPercent) },
       { key: "monthsCovered", label: "Months covered now", kind: "number", value: roundMoney(monthsCovered) },
+      { key: "months", label: "Target months", kind: "number", value: months },
+      { key: "currentSavings", label: "Current savings", kind: "currency", value: current },
     ],
     narrative:
       shortfall > 0

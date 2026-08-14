@@ -248,6 +248,13 @@ export function calculateCombinatorics(inputs: CalculatorInputs): CalcResult {
   let npr = 1;
   for (let i = 0; i < r; i++) {
     npr *= n - i;
+    if (!Number.isFinite(npr)) {
+      return {
+        ok: false,
+        error: "The number of permutations is too large to calculate precisely.",
+        metrics: [],
+      };
+    }
   }
 
   return {

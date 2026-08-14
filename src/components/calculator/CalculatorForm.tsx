@@ -6,6 +6,7 @@ import { validateInputs } from "@/lib/validation/validate";
 import { useCurrency } from "@/lib/currency/context";
 import { addHistoryEntry } from "@/lib/storage/history";
 import { getCalculator } from "@/data/calculators";
+import { sanitizeResult } from "@/lib/calculations/sanitize";
 import { ResultsPanel } from "./ResultsPanel";
 import { ScenarioManager } from "./ScenarioManager";
 import { ResultActions } from "./ResultActions";
@@ -75,7 +76,17 @@ export function CalculatorForm({ calculator, initialInputs }: Props) {
       setResult({ ok: false, error: "Calculator unavailable.", metrics: [] });
       return;
     }
-    const res = calculate(inputs);
+    let res: CalcResult;
+    try {
+      res = sanitizeResult(calculate(inputs));
+    } catch {
+      // A calculator must never crash the page. Fall back to a clear error.
+      res = {
+        ok: false,
+        error: "This calculation hit an unexpected error. Please check your inputs.",
+        metrics: [],
+      };
+    }
     setResult(res);
 
     if (res.ok) {
@@ -220,6 +231,7 @@ export function CalculatorForm({ calculator, initialInputs }: Props) {
         {result?.ok && <ExplainPanel calculator={calculator} result={result} />}
         {calculator.supportsScenarios && (
           <ScenarioManager
+            key={calculator.id}
             calculator={calculator}
             inputs={inputs}
             baseline={result}

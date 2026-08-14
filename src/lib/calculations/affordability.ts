@@ -1,5 +1,6 @@
 import type { CalcResult, CalculatorInputs } from "@/types";
-import { monthlyPayment, roundMoney, toNumber } from "@/lib/utils/math";
+import { allFinite, monthlyPayment, roundMoney, toNumber } from "@/lib/utils/math";
+import { OVERFLOW_ERROR } from "./sanitize";
 
 /**
  * Affordability — can I afford this purchase? Considers optional financing
@@ -36,15 +37,26 @@ export function calculateAffordability(inputs: CalculatorInputs): CalcResult {
     }
     const principal = price - downPayment;
     monthlyCost = monthlyPayment(principal, annualRate, termMonths);
-    totalCost = roundMoney(downPayment + monthlyCost * termMonths);
+    const rawTotalCost = downPayment + monthlyCost * termMonths;
+    if (!allFinite(monthlyCost, rawTotalCost)) {
+      return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+    }
+    totalCost = roundMoney(rawTotalCost);
   } else {
     // Paying in full: express the one-time cost as an equivalent monthly
     // figure over 12 months for an apples-to-apples income comparison.
+    if (!Number.isFinite(price / 12)) {
+      return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+    }
     monthlyCost = roundMoney(price / 12);
     upfront = price;
   }
 
-  const incomePercent = roundMoney((monthlyCost / monthlyIncome) * 100);
+  const rawIncomePercent = (monthlyCost / monthlyIncome) * 100;
+  if (!allFinite(rawIncomePercent)) {
+    return { ok: false, error: OVERFLOW_ERROR, metrics: [] };
+  }
+  const incomePercent = roundMoney(rawIncomePercent);
 
   let tone: "positive" | "warning" | "negative";
   let verdict: string;
