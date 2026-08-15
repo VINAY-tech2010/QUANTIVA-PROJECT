@@ -23,5 +23,12 @@
 		// Enable image optimization
 		// see https://opennext.js.org/cloudflare/howtos/image
 		"binding": "IMAGES"
+	},
+	"vars": {
+		// Feedback delivery configuration. The EMAIL_PROVIDER_API_KEY secret is
+		// stored separately in the dashboard and is never committed.
+		"EMAIL_PROVIDER": "resend",
+		"FEEDBACK_FROM_EMAIL": "feedback@calkulater.bond",
+		"FEEDBACK_TO_EMAIL": "vinay1552010@gmail.com"
 	}
 }
