@@ -41,8 +41,8 @@ export default function PrivacyPage() {
 
       <h2>Advertising</h2>
       <p>
-        calkulater may display advertising provided by third-party networks such as Google
-        AdSense. When ads are enabled, these networks may use cookies or similar
+        calkulater may display advertising provided by third-party networks such as
+        HilltopAds. When ads are enabled, these networks may use cookies or similar
         technologies to serve and measure ads, including personalized ads where permitted.
         You can control personalized advertising through your ad provider&rsquo;s settings and
         your browser. See our <Link href="/cookies">Cookie Policy</Link> for more.

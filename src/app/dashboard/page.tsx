@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { DashboardClient } from "./DashboardClient";
-import { BetweenContentAd } from "@/components/ads/placements";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -20,10 +19,6 @@ export default function DashboardPage() {
       <p className="mt-3 text-muted">Your recent calculations, scenarios and budgets.</p>
       <div className="mt-8">
         <DashboardClient />
-      </div>
-      {/* Single optional ad below the dashboard content — never above navigation. */}
-      <div className="mt-10">
-        <BetweenContentAd />
       </div>
     </main>
   );

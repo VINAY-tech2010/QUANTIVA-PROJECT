@@ -4,7 +4,6 @@ import { Suspense } from "react";
 import { CATEGORIES } from "@/data/categories";
 import { calculatorsByCategory } from "@/data/calculators";
 import { IntentSearch } from "@/components/search/IntentSearch";
-import { BetweenContentAd } from "@/components/ads/placements";
 import { SITE, buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
@@ -70,13 +69,6 @@ export default function Home() {
                 ))}
               </div>
             </section>
-            {/* A single in-content ad after the first category only — the home
-                page must not become an ad directory. */}
-            {i === 0 && (
-              <div className="py-2">
-                <BetweenContentAd />
-              </div>
-            )}
           </div>
         );
       })}

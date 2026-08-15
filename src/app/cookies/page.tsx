@@ -26,9 +26,9 @@ export default function CookiesPage() {
 
       <h2>Advertising cookies</h2>
       <p>
-        When advertising is enabled, third-party ad networks such as Google AdSense may set
-        or read cookies and use similar technologies to serve ads, limit how often you see
-        an ad, measure effectiveness, and — where permitted — personalize ads based on your
+        When advertising is enabled, third-party ad networks such as HilltopAds may set or
+        read cookies and use similar technologies to serve ads, limit how often you see an
+        ad, measure effectiveness, and — where permitted — personalize ads based on your
         visits to this and other sites.
       </p>
 

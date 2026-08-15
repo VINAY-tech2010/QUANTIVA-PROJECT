@@ -7,7 +7,7 @@ import { SidebarProvider } from "@/lib/sidebar/context";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { AdSenseScript } from "@/components/ads/AdSenseScript";
+import { PopUnderScript } from "@/components/ads/PopUnderScript";
 import { SITE, webAppJsonLd, websiteJsonLd, organizationJsonLd } from "@/lib/seo";
 
 const geistSans = Geist({
@@ -47,13 +47,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
-  <meta name="referrer" content="no-referrer-when-downgrade" />
   <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-  <script
-    async
-    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6975236710581931"
-    crossOrigin="anonymous"
-  />
 </head>
       <body className="app-backdrop flex min-h-full flex-col">
         <script
@@ -79,7 +73,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                   <SiteFooter />
                 </div>
               </div>
-              <AdSenseScript />
+              <PopUnderScript />
             </SidebarProvider>
           </CurrencyProvider>
         </ThemeProvider>

@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { getCalculator, listCalculators } from "@/data/calculators";
 import { getCategory } from "@/data/categories";
 import { CalculatorForm } from "@/components/calculator/CalculatorForm";
-import { SidebarAd, BetweenContentAd, CalculatorBottomAd } from "@/components/ads/placements";
 import { buildMetadata, breadcrumbJsonLd, calculatorJsonLd, seoTitle } from "@/lib/seo";
 
 export function generateStaticParams() {
@@ -112,13 +111,6 @@ export default async function CalculatorPage({
         <div className="min-w-0 flex-1">
           <CalculatorForm calculator={config} initialInputs={initialInputs} />
         </div>
-        <div className="w-full shrink-0 lg:w-[300px]">
-          <SidebarAd />
-        </div>
-      </div>
-
-      <div className="mt-10">
-        <BetweenContentAd />
       </div>
 
       <section className="mt-12 max-w-3xl">
@@ -177,10 +169,6 @@ export default async function CalculatorPage({
           </div>
         </section>
       )}
-
-      <div className="mt-12">
-        <CalculatorBottomAd />
-      </div>
     </main>
   );
 }

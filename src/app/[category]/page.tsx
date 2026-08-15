@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CATEGORIES, getCategory, isCategorySlug } from "@/data/categories";
 import { calculatorsByCategory } from "@/data/calculators";
-import { CategoryAd, FooterAd } from "@/components/ads/placements";
 import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
 
 export function generateStaticParams() {
@@ -76,15 +75,6 @@ export default async function CategoryPage({
             </span>
           </Link>
         ))}
-      </div>
-
-      {/* One ad below the grid — never between cards, never an ad directory. */}
-      <div className="mt-12">
-        <CategoryAd />
-      </div>
-
-      <div className="mt-8">
-        <FooterAd />
       </div>
     </main>
   );
