@@ -31,9 +31,9 @@ describe("seoTitle", () => {
 describe("buildMetadata", () => {
   it("emits a canonical URL and default OG image", () => {
     const meta = buildMetadata({ title: "Test", description: "Desc", path: "/test" });
-    expect(meta.alternates?.canonical).toBe("https://calkulater.app/test");
+    expect(meta.alternates?.canonical).toBe("https://calkulater.bond/test");
     expect(meta.openGraph?.images).toEqual([
-      { url: "https://calkulater.app/opengraph-image", width: 1200, height: 630, alt: "calkulater — Test" },
+      { url: "https://calkulater.bond/opengraph-image", width: 1200, height: 630, alt: "calkulater — Test" },
     ]);
   });
 
@@ -45,7 +45,7 @@ describe("buildMetadata", () => {
       ogImagePath: "/calculator/loan/opengraph-image",
     });
     expect(meta.openGraph?.images).toEqual([
-      { url: "https://calkulater.app/calculator/loan/opengraph-image", width: 1200, height: 630, alt: "calkulater — Loan Calculator" },
+      { url: "https://calkulater.bond/calculator/loan/opengraph-image", width: 1200, height: 630, alt: "calkulater — Loan Calculator" },
     ]);
   });
 
