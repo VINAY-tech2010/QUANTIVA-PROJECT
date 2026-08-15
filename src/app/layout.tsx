@@ -47,6 +47,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
+  <meta name="referrer" content="no-referrer-when-downgrade" />
   <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
   <script
     async

@@ -33,8 +33,9 @@ declare global {
  * Behaviour:
  * - When AdSense is configured (see src/lib/ads/config.ts), renders a real
  *   responsive ad unit and requests one fill after mount.
- * - When not configured, renders a clearly-labelled, space-reserving
- *   placeholder with no network calls and no fake advertisement content.
+ * - When not configured, renders nothing at all — no reserved space, no
+ *   outline, no placeholder, no network calls and no fake advertisement
+ *   content.
  * - If an ad fails to fill, the container simply remains an empty reserved
  *   box — calkulater continues working normally and no error is shown to users.
  *
@@ -59,30 +60,24 @@ export function AdSlot({ placement, label, className = "" }: Props) {
     }
   }, [enabled]);
 
+  if (!enabled) return null;
+
   return (
     <aside
       aria-label={label ?? "Advertisement"}
       data-ad-slot={placement}
-      className={`flex items-center justify-center overflow-hidden rounded-xl ${
-        enabled ? "" : "border border-dashed border-white/10 bg-white/[0.02]"
-      } ${hidden} ${className}`}
+      className={`flex items-center justify-center overflow-hidden ${hidden} ${className}`}
       style={SIZE[placement]}
     >
-      {enabled ? (
-        <ins
-          ref={insRef}
-          className="adsbygoogle"
-          style={{ display: "block", width: "100%" }}
-          data-ad-client={ADSENSE_CLIENT}
-          data-ad-slot={ADSENSE_SLOTS[placement]}
-          data-ad-format="auto"
-          data-full-width-responsive="true"
-        />
-      ) : (
-        <span className="select-none text-[0.65rem] uppercase tracking-widest text-muted/50">
-          Ad
-        </span>
-      )}
+      <ins
+        ref={insRef}
+        className="adsbygoogle"
+        style={{ display: "block", width: "100%" }}
+        data-ad-client={ADSENSE_CLIENT}
+        data-ad-slot={ADSENSE_SLOTS[placement]}
+        data-ad-format="auto"
+        data-full-width-responsive="true"
+      />
     </aside>
   );
 }
