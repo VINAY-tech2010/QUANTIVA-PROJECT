@@ -36,7 +36,7 @@ export default function Home() {
       </section>
 
       {/* Categories */}
-      {CATEGORIES.map((cat, i) => {
+      {CATEGORIES.map((cat) => {
         const tools = calculatorsByCategory(cat.slug);
         return (
           <div key={cat.slug}>

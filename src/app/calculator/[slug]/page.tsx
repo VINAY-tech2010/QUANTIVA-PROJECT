@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { getCalculator, listCalculators } from "@/data/calculators";
 import { getCategory } from "@/data/categories";
-import { CalculatorForm } from "@/components/calculator/CalculatorForm";
+import { CalculatorForm, type CalculatorConfig } from "@/components/calculator/CalculatorForm";
+import { PrefilledCalculator } from "@/components/calculator/PrefilledCalculator";
 import { buildMetadata, breadcrumbJsonLd, calculatorJsonLd, seoTitle } from "@/lib/seo";
 
 export function generateStaticParams() {
@@ -28,36 +30,12 @@ export async function generateMetadata({
 
 export default async function CalculatorPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { slug } = await params;
   const calc = getCalculator(slug);
   if (!calc) notFound();
-
-  // Pre-fill inputs from the query string (e.g. intent-search deep links).
-  const sp = await searchParams;
-  const initialInputs: Record<string, number | string> = {};
-  for (const field of calc.fields) {
-    const raw = sp[field.key];
-    const v = Array.isArray(raw) ? raw[0] : raw;
-    if (v === undefined) continue;
-    if (
-      field.type === "time" ||
-      field.type === "date" ||
-      field.type === "datetime" ||
-      field.type === "text" ||
-      field.type === "textarea" ||
-      field.type === "select"
-    ) {
-      initialInputs[field.key] = v;
-    } else {
-      const n = Number(v);
-      if (Number.isFinite(n)) initialInputs[field.key] = n;
-    }
-  }
 
   const category = getCategory(calc.category);
   const related = calc.related
@@ -68,7 +46,7 @@ export default async function CalculatorPage({
   // server/client boundary; the client resolves it from the registry by id.
   const config = Object.fromEntries(
     Object.entries(calc).filter(([k]) => k !== "calculate"),
-  ) as Omit<typeof calc, "calculate">;
+  ) as CalculatorConfig;
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
@@ -109,7 +87,12 @@ export default async function CalculatorPage({
 
       <div className="flex flex-col gap-8 lg:flex-row">
         <div className="min-w-0 flex-1">
-          <CalculatorForm calculator={config} initialInputs={initialInputs} />
+          {/* Suspense keeps the page static while the prefilled form hydrates
+              and reads ?key=value deep links; without query params the plain
+              form is the fallback, so nothing visually changes. */}
+          <Suspense fallback={<CalculatorForm calculator={config} />}>
+            <PrefilledCalculator calculator={config} />
+          </Suspense>
         </div>
       </div>
 

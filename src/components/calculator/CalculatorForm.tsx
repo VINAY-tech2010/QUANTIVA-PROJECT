@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { CalcResult, CalculatorDefinition, CalculatorInputs } from "@/types";
 import { validateInputs } from "@/lib/validation/validate";
 import { useCurrency } from "@/lib/currency/context";
@@ -29,6 +29,37 @@ function buildDefaults(calc: CalculatorConfig): CalculatorInputs {
   return out;
 }
 
+/**
+ * Pure computation for deep-linked visits: merge defaults with pre-filled
+ * inputs, validate, and run the calculation once during first render. Returns
+ * null when there is nothing to pre-fill or the inputs are invalid (the user
+ * simply sees the empty form, with no error noise on load).
+ */
+function computePrefillResult(
+  calc: CalculatorConfig,
+  initialInputs: CalculatorInputs | undefined,
+  calculate: ((inputs: CalculatorInputs) => CalcResult) | undefined,
+): { merged: CalculatorInputs; result: CalcResult } | null {
+  if (!initialInputs || Object.keys(initialInputs).length === 0) return null;
+  const merged = { ...buildDefaults(calc), ...initialInputs };
+  if (validateInputs(calc.fields, merged).length > 0) return null;
+  if (!calculate) {
+    return { merged, result: { ok: false, error: "Calculator unavailable.", metrics: [] } };
+  }
+  try {
+    return { merged, result: sanitizeResult(calculate(merged)) };
+  } catch {
+    return {
+      merged,
+      result: {
+        ok: false,
+        error: "This calculation hit an unexpected error. Please check your inputs.",
+        metrics: [],
+      },
+    };
+  }
+}
+
 export function CalculatorForm({ calculator, initialInputs }: Props) {
   const { currency, symbol } = useCurrency();
   // Resolve the pure calculate function client-side from the registry by id.
@@ -38,7 +69,16 @@ export function CalculatorForm({ calculator, initialInputs }: Props) {
     ...buildDefaults(calculator),
     ...initialInputs,
   }));
-  const [result, setResult] = useState<CalcResult | null>(null);
+
+  // Deep-linked (intent-search) visits arrive with pre-filled inputs: compute
+  // the answer during the first render (pure, deterministic) so the result is
+  // visible immediately instead of requiring a button press. The calculation
+  // is derived state, not a mount effect — no setState-in-effect.
+  const prefilled = useMemo(
+    () => computePrefillResult(calculator, initialInputs, calculate),
+    [calculator, initialInputs, calculate],
+  );
+  const [result, setResult] = useState<CalcResult | null>(() => prefilled?.result ?? null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const primaryMetricKey = useMemo(
@@ -61,49 +101,79 @@ export function CalculatorForm({ calculator, initialInputs }: Props) {
     setInputs((prev) => ({ ...prev, ...overrides }));
   }
 
+  const runCalculation = useCallback(
+    (current: CalculatorInputs) => {
+      const fieldErrors = validateInputs(calculator.fields, current);
+      if (fieldErrors.length > 0) {
+        const map: Record<string, string> = {};
+        for (const fe of fieldErrors) map[fe.field] = fe.message;
+        setErrors(map);
+        setResult(null);
+        return;
+      }
+      setErrors({});
+      if (!calculate) {
+        setResult({ ok: false, error: "Calculator unavailable.", metrics: [] });
+        return;
+      }
+      let res: CalcResult;
+      try {
+        res = sanitizeResult(calculate(current));
+      } catch {
+        // A calculator must never crash the page. Fall back to a clear error.
+        res = {
+          ok: false,
+          error: "This calculation hit an unexpected error. Please check your inputs.",
+          metrics: [],
+        };
+      }
+      setResult(res);
+
+      if (res.ok) {
+        const primary = res.metrics.find((m) => m.primary) ?? res.metrics[0] ?? null;
+        addHistoryEntry({
+          id: `${calculator.id}-${Date.now()}`,
+          calculatorId: calculator.id,
+          calculatorName: calculator.name,
+          category: calculator.category,
+          inputs: current,
+          summary: primary
+            ? { label: primary.label, value: primary.value, kind: primary.kind }
+            : null,
+          currency: calculator.usesCurrency ? currency : undefined,
+          createdAt: Date.now(),
+        });
+      }
+    },
+    [calculate, calculator, currency, setResult],
+  );
+
+  // Record the deep-linked calculation in history exactly once, after mount.
+  const didRecordPrefill = useRef(false);
+  useEffect(() => {
+    if (didRecordPrefill.current) return;
+    didRecordPrefill.current = true;
+    const computed = prefilled;
+    if (!computed || !computed.result.ok) return;
+    const primary =
+      computed.result.metrics.find((m) => m.primary) ?? computed.result.metrics[0] ?? null;
+    addHistoryEntry({
+      id: `${calculator.id}-${Date.now()}`,
+      calculatorId: calculator.id,
+      calculatorName: calculator.name,
+      category: calculator.category,
+      inputs: computed.merged,
+      summary: primary
+        ? { label: primary.label, value: primary.value, kind: primary.kind }
+        : null,
+      currency: calculator.usesCurrency ? currency : undefined,
+      createdAt: Date.now(),
+    });
+  }, [prefilled, calculator, currency]);
+
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const fieldErrors = validateInputs(calculator.fields, inputs);
-    if (fieldErrors.length > 0) {
-      const map: Record<string, string> = {};
-      for (const fe of fieldErrors) map[fe.field] = fe.message;
-      setErrors(map);
-      setResult(null);
-      return;
-    }
-    setErrors({});
-    if (!calculate) {
-      setResult({ ok: false, error: "Calculator unavailable.", metrics: [] });
-      return;
-    }
-    let res: CalcResult;
-    try {
-      res = sanitizeResult(calculate(inputs));
-    } catch {
-      // A calculator must never crash the page. Fall back to a clear error.
-      res = {
-        ok: false,
-        error: "This calculation hit an unexpected error. Please check your inputs.",
-        metrics: [],
-      };
-    }
-    setResult(res);
-
-    if (res.ok) {
-      const primary = res.metrics.find((m) => m.primary) ?? res.metrics[0] ?? null;
-      addHistoryEntry({
-        id: `${calculator.id}-${Date.now()}`,
-        calculatorId: calculator.id,
-        calculatorName: calculator.name,
-        category: calculator.category,
-        inputs,
-        summary: primary
-          ? { label: primary.label, value: primary.value, kind: primary.kind }
-          : null,
-        currency: calculator.usesCurrency ? currency : undefined,
-        createdAt: Date.now(),
-      });
-    }
+    runCalculation(inputs);
   }
 
   return (

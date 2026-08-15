@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CATEGORIES, getCategory, isCategorySlug } from "@/data/categories";
 import { calculatorsByCategory } from "@/data/calculators";
-import { buildMetadata, breadcrumbJsonLd } from "@/lib/seo";
+import { buildMetadata, breadcrumbJsonLd, collectionJsonLd } from "@/lib/seo";
 
 export function generateStaticParams() {
   return CATEGORIES.map((c) => ({ category: c.slug }));
@@ -44,6 +44,19 @@ export default async function CategoryPage({
               { name: "Home", path: "/" },
               { name: cat.name, path: `/${cat.slug}` },
             ]),
+          ),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            collectionJsonLd({
+              name: cat.name,
+              path: `/${cat.slug}`,
+              description: cat.description,
+              items: tools.map((t) => ({ name: t.name, path: `/calculator/${t.slug}` })),
+            }),
           ),
         }}
       />

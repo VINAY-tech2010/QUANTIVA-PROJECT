@@ -145,6 +145,28 @@ export function faqJsonLd(faqs: { question: string; answer: string }[]) {
   };
 }
 
+/** JSON-LD CollectionPage for category pages that list calculators. */
+export function collectionJsonLd(opts: {
+  name: string;
+  path: string;
+  description: string;
+  items: { name: string; path: string }[];
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: opts.name,
+    description: opts.description,
+    url: `${SITE.url}${opts.path}`,
+    isPartOf: { "@type": "WebSite", name: SITE.name, url: SITE.url },
+    hasPart: opts.items.map((item) => ({
+      "@type": "WebPage",
+      name: item.name,
+      url: `${SITE.url}${item.path}`,
+    })),
+  };
+}
+
 /** JSON-LD breadcrumb list. */
 export function breadcrumbJsonLd(items: { name: string; path: string }[]) {
   return {
