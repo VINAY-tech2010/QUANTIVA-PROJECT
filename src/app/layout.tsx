@@ -8,6 +8,7 @@ import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { PopUnderScript } from "@/components/ads/PopUnderScript";
+import { BannerScript } from "@/components/ads/BannerScript";
 import { SITE, webAppJsonLd, websiteJsonLd, organizationJsonLd } from "@/lib/seo";
 
 const geistSans = Geist({
@@ -75,6 +76,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 </div>
               </div>
               <PopUnderScript />
+              <BannerScript />
             </SidebarProvider>
           </CurrencyProvider>
         </ThemeProvider>
